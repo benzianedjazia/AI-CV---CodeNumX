@@ -5,6 +5,7 @@ import { PaperAirplaneIcon } from './icons/PaperAirplaneIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { MapPinIcon } from './icons/MapPinIcon';
 import { ExternalLinkIcon } from './icons/ExternalLinkIcon';
+import { PhoneIcon } from './icons/PhoneIcon';
 
 
 interface ApplicationCardProps {
@@ -99,10 +100,21 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
           <div className="flex-1 mb-4 md:mb-0 md:pr-6">
             <h3 className="text-xl font-bold text-indigo-700">{job.title}</h3>
             <p className="text-md font-semibold text-gray-600">{job.company}</p>
-            <div className="flex items-center text-sm text-gray-500 mt-1">
-              <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
-              <span>{job.location}</span>
+            <div className="flex items-center text-sm text-gray-500 mt-2 space-x-4">
+              <div className="flex items-center">
+                <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                <span>{job.location}</span>
+              </div>
+               {job.phone && (
+                <div className="flex items-center">
+                    <PhoneIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                    <span>{job.phone}</span>
+                </div>
+               )}
             </div>
+             {job.address && (
+                 <p className="mt-2 text-sm text-gray-500">{job.address}</p>
+             )}
             <p className="mt-2 text-sm text-gray-600">{job.description}</p>
              <div className="flex items-center mt-3 text-xs font-semibold text-gray-500 uppercase">
                 Source: {job.source}

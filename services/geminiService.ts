@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { CvData, Job } from '../types';
 
@@ -24,6 +23,10 @@ const cvSchema = {
     linkedin: {
       type: Type.STRING,
       description: "URL du profil LinkedIn du candidat, si disponible."
+    },
+    summary: {
+        type: Type.STRING,
+        description: "Un résumé professionnel de 2-4 phrases."
     },
     skills: {
       type: Type.ARRAY,
@@ -75,14 +78,15 @@ const jobsSchema = {
             source: { type: Type.STRING, description: "Le nom du site où l'offre a été trouvée (ex: LinkedIn, Indeed, Site Carrière)." },
             url: { type: Type.STRING, description: "Une URL fictive mais valide vers l'offre d'emploi." },
             hiringEmail: { type: Type.STRING, description: "Une adresse e-mail de recrutement fictive mais plausible (ex: careers@company.com)." },
-            address: { type: Type.STRING, description: "Une adresse civique fictive mais plausible pour l'entreprise." }
+            address: { type: Type.STRING, description: "Une adresse civique fictive mais plausible pour l'entreprise." },
+            phone: { type: Type.STRING, description: "Un numéro de téléphone fictif mais plausible pour l'entreprise." }
         },
         required: ["title", "company", "location", "description", "source", "url"]
     }
 };
 
 async function extractCvInfo(cvText: string): Promise<CvData> {
-  const prompt = `Analysez le texte de CV suivant et extrayez les informations personnelles (nom, email, téléphone), l'URL LinkedIn (si présente), les compétences clés, l'expérience professionnelle et la formation. Retournez le résultat sous forme d'objet JSON.\n\nCV:\n${cvText}`;
+  const prompt = `Analysez le texte de CV suivant et extrayez les informations personnelles (nom, email, téléphone), l'URL LinkedIn (si présente), un résumé, les compétences clés, l'expérience professionnelle et la formation. Retournez le résultat sous forme d'objet JSON.\n\nCV:\n${cvText}`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -102,8 +106,33 @@ async function extractCvInfo(cvText: string): Promise<CvData> {
   }
 }
 
-async function findJobs(skills: string[], location: string): Promise<Job[]> {
-  const prompt = `Basé sur les compétences suivantes: [${skills.join(', ')}] et la localisation '${location}', générez une liste de 15 offres d'emploi appropriées. Pour chaque emploi, fournissez un titre, un nom d'entreprise, une localisation, une brève description, la source (ex: LinkedIn, Indeed), une URL fictive valide vers l'annonce, une adresse e-mail de recrutement fictive et une adresse civique fictive pour l'entreprise. Retournez le résultat sous forme de tableau JSON.`;
+async function createCvFromLinkedIn(linkedinUrl: string): Promise<CvData> {
+    const prompt = `En vous basant sur l'URL de profil LinkedIn suivante, générez un CV détaillé et plausible au format JSON. Le CV doit être bien structuré avec des informations personnelles, un résumé, des compétences, plusieurs expériences professionnelles avec des responsabilités et une formation. Les données doivent être réalistes et d'aspect professionnel. Assurez-vous d'inventer des détails crédibles si le profil est générique.\n\nURL: ${linkedinUrl}`;
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: cvSchema,
+        }
+    });
+
+    const jsonText = response.text.trim();
+    try {
+        return JSON.parse(jsonText) as CvData;
+    } catch (e) {
+        console.error("Failed to parse LinkedIn CV JSON:", jsonText);
+        throw new Error("The AI returned an invalid format for LinkedIn CV data.");
+    }
+}
+
+
+async function findJobs(skills: string[], location: string, contractTypes: string[], datePosted: string): Promise<Job[]> {
+  const contractPrompt = contractTypes.length > 0 ? `pour les types de contrat suivants : [${contractTypes.join(', ')}]` : '';
+  const datePrompt = datePosted === 'month' ? `publiées il y a moins d'un mois` : '';
+
+  const prompt = `Basé sur les compétences suivantes: [${skills.join(', ')}], la localisation '${location}' ${contractPrompt}, générez une liste de 15 offres d'emploi appropriées ${datePrompt}. Pour chaque emploi, fournissez un titre, un nom d'entreprise, une localisation, une brève description, la source (ex: LinkedIn, Indeed), une URL fictive valide, une adresse e-mail de recrutement fictive, une adresse civique fictive et un numéro de téléphone fictif pour l'entreprise. Retournez le résultat sous forme de tableau JSON.`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -167,6 +196,7 @@ Générez uniquement le texte de la lettre de motivation.`;
 
 export const geminiService = {
   extractCvInfo,
+  createCvFromLinkedIn,
   findJobs,
   generateCoverLetter,
 };

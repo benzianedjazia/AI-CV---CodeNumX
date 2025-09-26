@@ -5,6 +5,7 @@ export interface CvData {
     phone: string;
   };
   linkedin?: string;
+  summary?: string;
   skills: string[];
   experience: {
     jobTitle: string;
@@ -28,6 +29,7 @@ export interface Job {
   url: string;    // The direct URL to the job posting
   hiringEmail?: string; // e.g., "careers@company.com"
   address?: string; // e.g., "123 Rue de la République, 75001 Paris, France"
+  phone?: string;
 }
 
 export interface Application {

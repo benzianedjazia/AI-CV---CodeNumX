@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { Header } from './components/Header';
-import { Hero } from './components/Hero';
+import { Hero, CvInput, SearchOptions } from './components/Hero';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { ResultsDashboard } from './components/ResultsDashboard';
 import { geminiService } from './services/geminiService';
@@ -17,21 +17,38 @@ const App: React.FC = () => {
   const [isBulkConfirming, setIsBulkConfirming] = useState(false);
 
 
-  const handleAnalysis = useCallback(async (cvText: string, location: string) => {
+  const handleAnalysis = useCallback(async (cvInput: CvInput, searchOptions: SearchOptions) => {
     setLoadingState('parsing');
     setError(null);
     setApplications([]);
     setCvData(null);
 
     try {
-      const extractedCvData = await geminiService.extractCvInfo(cvText);
+      let extractedCvData: CvData;
+
+      if (cvInput.type === 'text' && cvInput.content) {
+        extractedCvData = await geminiService.extractCvInfo(cvInput.content);
+      } else if (cvInput.type === 'linkedin' && cvInput.url) {
+        extractedCvData = await geminiService.createCvFromLinkedIn(cvInput.url);
+      } else if (cvInput.type === 'manual' && cvInput.data) {
+        extractedCvData = cvInput.data;
+      } else {
+        throw new Error("Invalid CV input provided.");
+      }
+      
       setCvData(extractedCvData);
       
       setLoadingState('findingJobs');
       
-      const foundJobs = await geminiService.findJobs(extractedCvData.skills, location);
+      const foundJobs = await geminiService.findJobs(
+        extractedCvData.skills, 
+        searchOptions.location,
+        searchOptions.contractTypes,
+        searchOptions.datePosted
+      );
+
       if (!foundJobs || foundJobs.length === 0) {
-        throw new Error("Could not find any job opportunities. Try refining your CV or location.");
+        throw new Error("Could not find any job opportunities. Try refining your CV or search criteria.");
       }
 
       const initialApplications: Application[] = foundJobs.map(job => ({

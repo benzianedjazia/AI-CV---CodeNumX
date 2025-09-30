@@ -1,99 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { CvData } from '../types';
 
 interface ManualCvFormProps {
+  cvData: CvData;
   onCvDataChange: (cvData: CvData) => void;
 }
 
-const initialCvData: CvData = {
-  personalInfo: { name: '', email: '', phone: '' },
-  linkedin: '',
-  summary: '',
-  skills: [],
-  experience: [{ jobTitle: '', company: '', duration: '', responsibilities: [''] }],
-  education: [{ degree: '', institution: '', duration: '' }],
-};
+export const ManualCvForm: React.FC<ManualCvFormProps> = ({ cvData, onCvDataChange }) => {
 
-export const ManualCvForm: React.FC<ManualCvFormProps> = ({ onCvDataChange }) => {
-  const [cvData, setCvData] = useState<CvData>(initialCvData);
-
-  useEffect(() => {
-    onCvDataChange(cvData);
-  }, [cvData, onCvDataChange]);
-  
   const handlePersonalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCvData(prev => ({
-      ...prev,
-      personalInfo: { ...prev.personalInfo, [name]: value },
-    }));
+    onCvDataChange({
+      ...cvData,
+      personalInfo: { ...cvData.personalInfo, [name]: value },
+    });
   };
 
   const handleSimpleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name === "skills") {
-      setCvData(prev => ({ ...prev, skills: value.split(',').map(s => s.trim()) }));
+      onCvDataChange({ ...cvData, skills: value.split(',').map(s => s.trim()) });
     } else {
-      setCvData(prev => ({ ...prev, [name]: value }));
+      onCvDataChange({ ...cvData, [name]: value });
     }
   };
   
   const handleExperienceChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const newExperience = [...cvData.experience];
-    newExperience[index] = { ...newExperience[index], [name]: value };
-    setCvData(prev => ({ ...prev, experience: newExperience }));
+    (newExperience[index] as any)[name] = value;
+    onCvDataChange({ ...cvData, experience: newExperience });
   };
 
   const handleResponsibilityChange = (expIndex: number, respIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const newExperience = [...cvData.experience];
     newExperience[expIndex].responsibilities[respIndex] = e.target.value;
-    setCvData(prev => ({ ...prev, experience: newExperience }));
+    onCvDataChange({ ...cvData, experience: newExperience });
   };
 
   const addResponsibility = (expIndex: number) => {
     const newExperience = [...cvData.experience];
     newExperience[expIndex].responsibilities.push('');
-    setCvData(prev => ({ ...prev, experience: newExperience }));
+    onCvDataChange({ ...cvData, experience: newExperience });
   }
 
   const removeResponsibility = (expIndex: number, respIndex: number) => {
     const newExperience = [...cvData.experience];
     newExperience[expIndex].responsibilities.splice(respIndex, 1);
-    setCvData(prev => ({ ...prev, experience: newExperience }));
+    onCvDataChange({ ...cvData, experience: newExperience });
   }
 
   const addExperience = () => {
-    setCvData(prev => ({
-      ...prev,
-      experience: [...prev.experience, { jobTitle: '', company: '', duration: '', responsibilities: [''] }],
-    }));
+    onCvDataChange({
+      ...cvData,
+      experience: [...cvData.experience, { jobTitle: '', company: '', duration: '', responsibilities: [''] }],
+    });
   };
   
   const removeExperience = (index: number) => {
     const newExperience = [...cvData.experience];
     newExperience.splice(index, 1);
-    setCvData(prev => ({ ...prev, experience: newExperience }));
+    onCvDataChange({ ...cvData, experience: newExperience });
   };
 
   const handleEducationChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const newEducation = [...cvData.education];
-    newEducation[index] = { ...newEducation[index], [name]: value };
-    setCvData(prev => ({ ...prev, education: newEducation }));
+    (newEducation[index] as any)[name] = value;
+    onCvDataChange({ ...cvData, education: newEducation });
   };
   
   const addEducation = () => {
-    setCvData(prev => ({
-      ...prev,
-      education: [...prev.education, { degree: '', institution: '', duration: '' }],
-    }));
+    onCvDataChange({
+      ...cvData,
+      education: [...cvData.education, { degree: '', institution: '', duration: '' }],
+    });
   };
 
   const removeEducation = (index: number) => {
     const newEducation = [...cvData.education];
     newEducation.splice(index, 1);
-    setCvData(prev => ({ ...prev, education: newEducation }));
+    onCvDataChange({ ...cvData, education: newEducation });
   };
 
   const inputClass = "w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm";
@@ -119,7 +106,7 @@ export const ManualCvForm: React.FC<ManualCvFormProps> = ({ onCvDataChange }) =>
         </div>
          <div className="mt-4">
             <label className={labelClass}>URL LinkedIn</label>
-            <input type="url" name="linkedin" value={cvData.linkedin} onChange={handleSimpleChange} className={inputClass} />
+            <input type="url" name="linkedin" value={cvData.linkedin || ''} onChange={handleSimpleChange} className={inputClass} />
         </div>
       </div>
 
@@ -127,7 +114,7 @@ export const ManualCvForm: React.FC<ManualCvFormProps> = ({ onCvDataChange }) =>
         <h3 className="font-semibold mb-2 text-gray-800">Résumé & Compétences</h3>
          <div>
             <label className={labelClass}>Résumé professionnel</label>
-            <textarea name="summary" value={cvData.summary} onChange={handleSimpleChange} className={inputClass} rows={3}></textarea>
+            <textarea name="summary" value={cvData.summary || ''} onChange={handleSimpleChange} className={inputClass} rows={3}></textarea>
         </div>
         <div className="mt-4">
             <label className={labelClass}>Compétences (séparées par des virgules)</label>

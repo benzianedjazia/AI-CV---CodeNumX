@@ -17,12 +17,12 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ applicatio
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-800">Confirmer l'envoi</h2>
+          <h2 className="text-xl font-bold text-gray-800">Confirmer la candidature</h2>
           <p className="mt-2 text-gray-600">
-            Votre client de messagerie s'est ouvert pour envoyer votre candidature pour le poste de <span className="font-semibold">{application.job.title}</span>.
+            La page de l'offre d'emploi s'est ouverte dans un nouvel onglet pour le poste de <span className="font-semibold">{application.job.title}</span>.
           </p>
           <p className="mt-4 text-gray-600">
-            Après avoir envoyé l'e-mail, veuillez cliquer sur le bouton ci-dessous pour confirmer que votre candidature a bien été envoyée.
+            Après avoir postulé sur le site, veuillez cliquer sur le bouton ci-dessous pour confirmer que votre candidature a bien été envoyée.
           </p>
         </div>
         <div className="p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">

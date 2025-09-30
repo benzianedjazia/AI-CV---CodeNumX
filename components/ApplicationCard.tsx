@@ -6,6 +6,7 @@ import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { MapPinIcon } from './icons/MapPinIcon';
 import { ExternalLinkIcon } from './icons/ExternalLinkIcon';
 import { PhoneIcon } from './icons/PhoneIcon';
+import { EnvelopeIcon } from './icons/EnvelopeIcon';
 
 
 interface ApplicationCardProps {
@@ -65,22 +66,57 @@ const ActionButton: React.FC<{ application: Application; onGenerateLetter: () =>
     }
 
     if (status === 'LetterGenerated' || status === 'AwaitingConfirmation' || status === 'Sent') {
-        const isApplied = status === 'Sent' || status === 'AwaitingConfirmation';
+        const isAwaitingOrSent = status === 'AwaitingConfirmation' || status === 'Sent';
+        
+        if (isAwaitingOrSent) {
+            return (
+                <button
+                    disabled
+                    className="flex items-center justify-center w-full md:w-auto px-4 py-2 rounded-md transition-colors text-white bg-green-500 cursor-not-allowed"
+                >
+                    {status === 'Sent' ? <CheckCircleIcon className="h-5 w-5 mr-2" /> : <PaperAirplaneIcon className="h-5 w-5 mr-2" />}
+                    {status === 'Sent' ? `Candidature envoyée` : 'Confirmation...'}
+                </button>
+            );
+        }
+
+        // Status is 'LetterGenerated'
         return (
-             <button
-              onClick={onApply}
-              disabled={isApplied}
-              className={`flex items-center justify-center w-full md:w-auto px-4 py-2 rounded-md transition-colors text-white ${
-                isApplied ? 'bg-green-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'
-              }`}
+            <button
+                onClick={onApply}
+                className="flex items-center justify-center w-full md:w-auto px-4 py-2 rounded-md transition-colors text-white bg-indigo-600 hover:bg-indigo-700"
             >
-              {status === 'Sent' ? <CheckCircleIcon className="h-5 w-5 mr-2" /> : <PaperAirplaneIcon className="h-5 w-5 mr-2" />}
-              {status === 'Sent' ? `Candidature envoyée` : status === 'AwaitingConfirmation' ? 'Confirmation...' : `Envoyer la candidature`}
+                <ExternalLinkIcon className="h-5 w-5 mr-2" />
+                Postuler sur le site
             </button>
         );
     }
     return null;
 }
+
+const linkify = (text?: string): React.ReactNode => {
+    if (!text) return text;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, i) => {
+        if (part && part.match(urlRegex)) {
+            return (
+                <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
 
 
 export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onViewCoverLetter, onGenerateLetter, onApply, onToggleSelect }) => {
@@ -99,23 +135,40 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
         <div className="flex-1 flex flex-col md:flex-row justify-between items-start">
           <div className="flex-1 mb-4 md:mb-0 md:pr-6">
             <h3 className="text-xl font-bold text-indigo-700">{job.title}</h3>
-            <p className="text-md font-semibold text-gray-600">{job.company}</p>
-            <div className="flex items-center text-sm text-gray-500 mt-2 space-x-4">
-              <div className="flex items-center">
-                <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
-                <span>{job.location}</span>
-              </div>
-               {job.phone && (
-                <div className="flex items-center">
+            
+            {job.companyWebsite ? (
+              <a href={job.companyWebsite} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-md font-semibold text-gray-600 hover:text-indigo-600 hover:underline">
+                {job.company}
+                <ExternalLinkIcon className="h-4 w-4 ml-1.5" />
+              </a>
+            ) : (
+               <p className="text-md font-semibold text-gray-600">{job.company}</p>
+            )}
+
+            <div className="flex items-center text-sm text-gray-500 mt-2">
+              <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+              <span>{job.location}</span>
+            </div>
+            
+             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                {job.address && (
+                  <p>{job.address}</p>
+                )}
+                {job.phone && (
+                  <a href={`tel:${job.phone}`} className="inline-flex items-center hover:text-indigo-600">
                     <PhoneIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
                     <span>{job.phone}</span>
-                </div>
-               )}
-            </div>
-             {job.address && (
-                 <p className="mt-2 text-sm text-gray-500">{job.address}</p>
-             )}
-            <p className="mt-2 text-sm text-gray-600">{job.description}</p>
+                  </a>
+                )}
+                 {job.hiringEmail && (
+                  <a href={`mailto:${job.hiringEmail}`} className="inline-flex items-center hover:text-indigo-600">
+                    <EnvelopeIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                    <span>{job.hiringEmail}</span>
+                  </a>
+                )}
+              </div>
+
+            <p className="mt-2 text-sm text-gray-600">{linkify(job.description)}</p>
              <div className="flex items-center mt-3 text-xs font-semibold text-gray-500 uppercase">
                 Source: {job.source}
                 <a href={job.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-600 hover:text-indigo-800">
@@ -140,7 +193,7 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
                  <ActionButton application={application} onGenerateLetter={onGenerateLetter} onApply={onApply} />
               </div>
             </div>
-            {status === 'Sent' && <p className="text-xs text-gray-500 mt-1">Une copie de confirmation est dans votre boîte mail.</p>}
+            {status === 'Sent' && <p className="text-xs text-gray-500 mt-1">Candidature marquée comme envoyée.</p>}
           </div>
         </div>
       </div>

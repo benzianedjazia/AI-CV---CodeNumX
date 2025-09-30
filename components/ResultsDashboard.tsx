@@ -13,6 +13,7 @@ interface ResultsDashboardProps {
   onToggleSelectAll: () => void;
   onBulkGenerate: () => void;
   onBulkApply: () => void;
+  groundingChunks: any[];
 }
 
 export const ResultsDashboard: React.FC<ResultsDashboardProps> = (props) => {
@@ -24,7 +25,8 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = (props) => {
     onToggleSelect,
     onToggleSelectAll,
     onBulkGenerate,
-    onBulkApply
+    onBulkApply,
+    groundingChunks,
   } = props;
   
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
@@ -54,6 +56,23 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = (props) => {
         </button>
       </div>
 
+      {groundingChunks && groundingChunks.length > 0 && (
+        <div className="mb-4 p-4 bg-slate-200/50 rounded-lg border border-slate-300">
+          <h4 className="font-semibold text-gray-700 mb-2 text-sm">Sources utilisées pour cette recherche :</h4>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            {groundingChunks.map((chunk, index) => (
+              chunk.web && (
+                <li key={index}>
+                  <a href={chunk.web.uri} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                    {chunk.web.title || chunk.web.uri}
+                  </a>
+                </li>
+              )
+            ))}
+          </ul>
+        </div>
+      )}
+
       {selectedCount > 0 && (
         <BulkActionsToolbar
           selectedCount={selectedCount}
@@ -66,16 +85,23 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = (props) => {
       )}
       
       <div className="space-y-4">
-        {applications.map(app => (
-          <ApplicationCard
-            key={app.id}
-            application={app}
-            onViewCoverLetter={() => viewCoverLetter(app)}
-            onGenerateLetter={() => onGenerateLetter(app.id)}
-            onApply={() => onApply(app.id)}
-            onToggleSelect={() => onToggleSelect(app.id)}
-          />
-        ))}
+        {applications.length > 0 ? (
+          applications.map(app => (
+            <ApplicationCard
+              key={app.id}
+              application={app}
+              onViewCoverLetter={() => viewCoverLetter(app)}
+              onGenerateLetter={() => onGenerateLetter(app.id)}
+              onApply={() => onApply(app.id)}
+              onToggleSelect={() => onToggleSelect(app.id)}
+            />
+          ))
+        ) : (
+          <div className="text-center p-12 bg-white rounded-lg shadow-md border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-700">Aucune offre d'emploi trouvée</h3>
+            <p className="mt-2 text-gray-500">Essayez de modifier vos critères de recherche ou de fournir un CV plus détaillé pour de meilleurs résultats.</p>
+          </div>
+        )}
       </div>
 
       {selectedApplication && (

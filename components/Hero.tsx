@@ -18,6 +18,15 @@ interface HeroProps {
   onAnalyze: (cvInput: CvInput, searchOptions: SearchOptions) => void;
 }
 
+const initialCvData: CvData = {
+  personalInfo: { name: '', email: '', phone: '' },
+  linkedin: '',
+  summary: '',
+  skills: [],
+  experience: [{ jobTitle: '', company: '', duration: '', responsibilities: [''] }],
+  education: [{ degree: '', institution: '', duration: '' }],
+};
+
 const extractTextFromPdf = async (file: File): Promise<string> => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.mjs`;
     const arrayBuffer = await file.arrayBuffer();
@@ -50,6 +59,24 @@ const contractOptions = [
   { id: 'subcontracting', label: 'Sous-traitance' },
 ];
 
+const TabButton: React.FC<{
+  tabId: 'upload' | 'linkedin' | 'manual';
+  activeTab: 'upload' | 'linkedin' | 'manual';
+  setActiveTab: (tabId: 'upload' | 'linkedin' | 'manual') => void;
+  children: React.ReactNode;
+}> = ({ tabId, activeTab, setActiveTab, children }) => (
+  <button
+    onClick={() => setActiveTab(tabId)}
+    className={`px-4 py-2 text-sm font-medium rounded-md ${
+      activeTab === tabId
+        ? 'bg-indigo-600 text-white'
+        : 'text-gray-600 hover:bg-gray-200'
+    }`}
+  >
+    {children}
+  </button>
+);
+
 export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
   const [cvInput, setCvInput] = useState<CvInput>({ type: 'text', content: '' });
   const [searchOptions, setSearchOptions] = useState<SearchOptions>({
@@ -65,6 +92,12 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [linkedinUrl, setLinkedinUrl] = useState('');
 
+  const handleManualCvDataChange = useCallback((data: CvData) => {
+    setCvInput({ type: 'manual', data });
+  }, []);
+  
+  const manualDataForForm = cvInput.type === 'manual' ? cvInput.data : initialCvData;
+
   const handleSubmit = () => {
     let finalCvInput = cvInput;
     if (activeTab === 'linkedin') {
@@ -74,18 +107,17 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
         return;
       }
     } else if (activeTab === 'upload') {
-      // FIX: Add type guard to ensure cvInput is of type 'text' before accessing 'content'.
       if (cvInput.type !== 'text' || !cvInput.content?.trim()) {
         setError('Veuillez fournir un CV.');
         return;
       }
     } else if (activeTab === 'manual') {
-      // Validation for manual data is handled inside the form, but a check here is good.
-      // FIX: Add type guard to ensure cvInput is of type 'manual' before accessing 'data'.
-      if (cvInput.type !== 'manual' || !cvInput.data?.personalInfo.name) {
+       const data = cvInput.type === 'manual' ? cvInput.data : initialCvData;
+       if (!data.personalInfo.name) {
           setError("Veuillez remplir au moins votre nom dans le formulaire manuel.");
           return;
       }
+       finalCvInput = { type: 'manual', data };
     }
 
     if (!searchOptions.location.trim()) {
@@ -151,15 +183,6 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
     });
   }
 
-  const TabButton: React.FC<{tabId: 'upload' | 'linkedin' | 'manual'; children: React.ReactNode}> = ({tabId, children}) => (
-     <button 
-        onClick={() => setActiveTab(tabId)}
-        className={`px-4 py-2 text-sm font-medium rounded-md ${activeTab === tabId ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
-    >
-        {children}
-    </button>
-  )
-
   return (
     <div className="w-full max-w-4xl text-center flex flex-col items-center">
       <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
@@ -175,9 +198,9 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
             1. Fournissez votre CV
            </label>
            <div className="flex space-x-2 border-b mb-4">
-               <TabButton tabId="upload">Télécharger un fichier</TabButton>
-               <TabButton tabId="linkedin">Importer de LinkedIn</TabButton>
-               <TabButton tabId="manual">Remplir manuellement</TabButton>
+               <TabButton tabId="upload" activeTab={activeTab} setActiveTab={setActiveTab}>Télécharger un fichier</TabButton>
+               <TabButton tabId="linkedin" activeTab={activeTab} setActiveTab={setActiveTab}>Importer de LinkedIn</TabButton>
+               <TabButton tabId="manual" activeTab={activeTab} setActiveTab={setActiveTab}>Remplir manuellement</TabButton>
            </div>
            
            {activeTab === 'upload' && (
@@ -219,7 +242,10 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
            )}
 
            {activeTab === 'manual' && (
-              <ManualCvForm onCvDataChange={(data) => setCvInput({ type: 'manual', data })} />
+              <ManualCvForm 
+                cvData={manualDataForForm}
+                onCvDataChange={handleManualCvDataChange} 
+              />
            )}
         </div>
 

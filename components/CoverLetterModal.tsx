@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import type { Application } from '../types';
 
 interface CoverLetterModalProps {
@@ -7,12 +6,45 @@ interface CoverLetterModalProps {
   onClose: () => void;
 }
 
+const linkify = (text?: string): React.ReactNode => {
+    if (!text) return text;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, i) => {
+        if (part && part.match(urlRegex)) {
+            return (
+                <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline"
+                    onClick={(e) => e.stopPropagation()} 
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
+
 export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({ application, onClose }) => {
   const { job, coverLetter } = application;
+  const [copyButtonText, setCopyButtonText] = useState('Copier le texte');
+
 
   const copyToClipboard = () => {
     if (coverLetter) {
-      navigator.clipboard.writeText(coverLetter);
+      navigator.clipboard.writeText(coverLetter).then(() => {
+        setCopyButtonText('Copié !');
+        setTimeout(() => setCopyButtonText('Copier le texte'), 2000);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        setCopyButtonText('Erreur');
+        setTimeout(() => setCopyButtonText('Copier le texte'), 2000);
+      });
     }
   };
 
@@ -37,16 +69,16 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({ application,
         <div className="p-4 sm:p-8 overflow-y-auto flex-grow">
           <div className="bg-white p-8 sm:p-12 shadow-lg max-w-3xl mx-auto">
             <div className="whitespace-pre-wrap font-serif text-gray-800 leading-relaxed text-sm">
-              {coverLetter}
+              {linkify(coverLetter)}
             </div>
           </div>
         </div>
         <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-wrap justify-end gap-3 bg-white rounded-b-lg">
           <button 
             onClick={copyToClipboard}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors w-32 text-center"
           >
-            Copier le texte
+            {copyButtonText}
           </button>
           <button 
             onClick={onClose}

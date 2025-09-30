@@ -1,12 +1,14 @@
 import React from 'react';
+import type { Application } from '../types';
 
 interface BulkConfirmationModalProps {
-  count: number;
+  applications: Application[];
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ count, onConfirm, onCancel }) => {
+export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ applications, onConfirm, onCancel }) => {
+  const count = applications.length;
   if (count === 0) return null;
     
   return (
@@ -18,12 +20,12 @@ export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ co
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-800">Confirmer les envois</h2>
+          <h2 className="text-xl font-bold text-gray-800">Confirmer les candidatures</h2>
           <p className="mt-2 text-gray-600">
-             Plusieurs fenêtres de votre client de messagerie se sont ouvertes pour envoyer vos <span className="font-semibold">{count}</span> candidature(s).
+             Plusieurs onglets se sont ouverts pour vous permettre de finaliser vos <span className="font-semibold">{count}</span> candidature(s) sur les sites des recruteurs.
           </p>
           <p className="mt-4 text-gray-600">
-            Après avoir envoyé tous les e-mails, veuillez cliquer sur le bouton ci-dessous pour confirmer que vos candidatures ont bien été envoyées.
+            Après avoir postulé sur chaque site, veuillez cliquer sur le bouton ci-dessous pour confirmer que vos candidatures ont bien été envoyées.
           </p>
         </div>
         <div className="p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">

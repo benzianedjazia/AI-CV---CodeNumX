@@ -147,10 +147,15 @@ async function findJobs(skills: string[], location: string, contractTypes: strin
     *   \`companyWebsite\`: (Optionnel) URL du site de l'entreprise.
     *   \`hiringEmail\`: (Optionnel) Email de contact pour postuler.
 
-4.  **Exigence de recherche de coordonnées (Adresse et Téléphone) :**
-    *   Ceci est une étape **OBLIGATOIRE**. Pour chaque entreprise, tu dois activement rechercher son numéro de téléphone principal et son adresse physique complète.
-    *   **Méthode :** Si l'annonce ne les contient pas, effectue une recherche Google sur "[Nom de l'entreprise] [Ville]" pour trouver leur site officiel ou leur fiche Google Business.
-    *   **Exemple de résultat attendu :**
+4.  **MISSION CRITIQUE : Recherche approfondie des coordonnées (Adresse et Téléphone)**
+    *   Ta mission la plus importante est de trouver le numéro de téléphone et l'adresse physique de chaque entreprise. C'est **non négociable**. Tu ne dois **JAMAIS** te contenter de l'offre d'emploi seule.
+    *   **Stratégie de recherche OBLIGATOIRE en plusieurs étapes :**
+        1.  **Analyse de l'annonce :** Cherche d'abord dans le texte de l'annonce.
+        2.  **Recherche Google Ciblée :** Si l'annonce est incomplète, tu DOIS effectuer une nouvelle recherche Google avec les termes : \`"[Nom de l'entreprise] [Ville] téléphone adresse"\`.
+        3.  **Exploration des sites web :** Consulte la page "Contact", "À propos" ou le pied de page du site officiel de l'entreprise pour trouver ces informations.
+        4.  **Utilisation de Pages Jaunes / Google Maps :** Si les étapes précédentes échouent, utilise des requêtes comme \`"[Nom de l'entreprise] [Ville] sur Pages Jaunes"\` ou cherche directement sur Google Maps.
+    *   **Objectif :** Remplir les champs \`phone\` et \`address\` pour **chaque offre**. Ne les omets que si, et seulement si, après avoir suivi TOUTES ces étapes, l'information est absolument introuvable (par exemple, pour une entreprise 100% en télétravail sans siège social public).
+    *   **Exemple de résultat PARFAIT :**
         \`\`\`json
         {
           "title": "Plaquiste H/F",
@@ -163,7 +168,7 @@ async function findJobs(skills: string[], location: string, contractTypes: strin
           "address": "10 Place de la Bourse, 31000 Toulouse, France"
         }
         \`\`\`
-    *   Ne retourne les champs \`phone\` et \`address\` que si tu trouves des informations **vérifiables**. Si, après une recherche approfondie, aucune information n'est disponible, tu peux omettre ces clés. Ne les invente jamais.
+    *   L'invention d'informations est strictement interdite. La précision est capitale.
 
 5.  **Cas sans résultat :** Si, après une recherche approfondie, aucune offre pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`. N'invente pas d'offres.
 6.  **Qualité avant tout :** Assure-toi que la sortie est un JSON valide et bien formaté, sans texte ou démarque de code (comme \`\`\`json) autour.`;

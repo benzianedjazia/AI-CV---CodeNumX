@@ -7,6 +7,7 @@ import { MapPinIcon } from './icons/MapPinIcon';
 import { ExternalLinkIcon } from './icons/ExternalLinkIcon';
 import { PhoneIcon } from './icons/PhoneIcon';
 import { EnvelopeIcon } from './icons/EnvelopeIcon';
+import { BuildingOfficeIcon } from './icons/BuildingOfficeIcon';
 
 
 interface ApplicationCardProps {
@@ -145,30 +146,32 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
                <p className="text-md font-semibold text-gray-600">{job.company}</p>
             )}
 
-            <div className="flex items-center text-sm text-gray-500 mt-2">
-              <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
-              <span>{job.location}</span>
-            </div>
-            
-             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+            <div className="mt-3 flex flex-col items-start gap-2 text-sm text-gray-600">
+                <div className="inline-flex items-center">
+                    <MapPinIcon className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                    <span>{job.location}</span>
+                </div>
                 {job.address && (
-                  <p>{job.address}</p>
+                  <div className="inline-flex items-start">
+                    <BuildingOfficeIcon className="h-4 w-4 mr-2 mt-0.5 text-gray-400 flex-shrink-0" />
+                    <span>{job.address}</span>
+                  </div>
                 )}
                 {job.phone && (
                   <a href={`tel:${job.phone}`} className="inline-flex items-center hover:text-indigo-600">
-                    <PhoneIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                    <PhoneIcon className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
                     <span>{job.phone}</span>
                   </a>
                 )}
                  {job.hiringEmail && (
                   <a href={`mailto:${job.hiringEmail}`} className="inline-flex items-center hover:text-indigo-600">
-                    <EnvelopeIcon className="h-4 w-4 mr-1.5 text-gray-400 flex-shrink-0" />
+                    <EnvelopeIcon className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
                     <span>{job.hiringEmail}</span>
                   </a>
                 )}
-              </div>
+            </div>
 
-            <p className="mt-2 text-sm text-gray-600">{linkify(job.description)}</p>
+            <p className="mt-3 text-sm text-gray-600">{linkify(job.description)}</p>
              <div className="flex items-center mt-3 text-xs font-semibold text-gray-500 uppercase">
                 Source: {job.source}
                 <a href={job.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-indigo-600 hover:text-indigo-800">

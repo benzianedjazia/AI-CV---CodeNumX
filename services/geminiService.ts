@@ -110,33 +110,63 @@ async function createCvFromLinkedIn(linkedinUrl: string): Promise<CvData> {
 
 
 async function findJobs(skills: string[], location: string, contractTypes: string[], datePosted: string): Promise<{ jobs: Job[], groundingChunks: any[] }> {
-  const contractPrompt = contractTypes.length > 0 ? `pour les types de contrat suivants : [${contractTypes.join(', ')}]` : '';
-  const datePrompt = datePosted === 'month' ? `publiées il y a moins d'un mois` : '';
+  
+  let specificInstructions = `Ta mission est de fournir une liste de résultats aussi riche et pertinente que possible, en visant **plus de 50 offres d'emploi**.`;
 
-  const prompt = `En utilisant la recherche Google, trouve une liste aussi grande que possible, jusqu'à 50 vraies offres d'emploi basées sur les critères suivants:
-- Compétences: [${skills.join(', ')}]
-- Localisation: '${location}'
-${contractPrompt ? `- Types de contrat: [${contractTypes.join(', ')}]` : ''}
-${datePrompt ? `- Date de publication: ${datePrompt}` : ''}
+  if (contractTypes.some(ct => ['Freelance', 'Sous-traitance'].includes(ct))) {
+    specificInstructions += `\n**Attention particulière pour les freelances/sous-traitants :** Cherche activement des "missions", "projets", ou des postes de "consultant". Explore les plateformes spécialisées pour freelances (comme Malt, Freelance-info, etc.) en plus des sites d'emploi traditionnels.`;
+  }
 
-Pour chaque offre d'emploi, extrais les informations suivantes :
-- title: Le titre du poste.
-- company: Le nom de l'entreprise.
-- location: La localisation du poste.
-- description: Une brève description du poste en 2-3 phrases.
-- source: Le nom du site web où l'offre a été trouvée (ex: "LinkedIn", "Indeed").
-- url: Le lien URL public et direct vers l'offre d'emploi. L'URL doit mener directement à la page de l'offre et ne doit JAMAIS être un lien de redirection interne (ex: ne commençant pas par 'vertexaisearch.cloud.google.com').
-- companyWebsite: L'URL du site web de l'entreprise.
-- hiringEmail: L'email de contact pour postuler.
-- address: L'adresse physique de l'entreprise.
-- phone: Le numéro de téléphone de contact.
+  const dateFilterInstruction = datePosted === 'month' 
+    ? "La recherche doit se concentrer sur les offres publiées il y a **moins d'un mois**."
+    : "La date de publication est **indifférente**. Tu dois retourner toutes les offres pertinentes, **même si elles sont anciennes** (par exemple, datant de plus d'un an ou deux). Ne filtre pas par date.";
 
-Instructions importantes :
-1. Si aucune offre ne correspond exactement, essaie d'élargir légèrement la recherche (par exemple, des localisations proches).
-2. Ne génère les champs 'companyWebsite', 'hiringEmail', 'address', et 'phone' que s'ils sont explicitement présents dans la source de l'offre. Ne les invente JAMAIS. Si ces informations ne sont pas disponibles, omets ces clés de l'objet JSON.
-3. Si, même après avoir élargi la recherche, aucune offre pertinente n'est trouvée, retourne IMPÉRATIVEMENT un tableau JSON vide : [].
-4. Retourne le résultat final sous la forme d'une chaîne de caractères JSON valide. La chaîne doit représenter un tableau d'objets, où chaque objet est une offre d'emploi. N'inclus pas de démarque de code (comme \`\`\`json) autour de la sortie JSON.
-5. Assure-toi que toutes les URLs fournies sont des liens publics, directs et fonctionnels, pas des liens de redirection internes.`;
+
+  const prompt = `En tant qu'expert en recrutement international, utilise la recherche Google pour trouver des offres d'emploi correspondant aux critères suivants. ${specificInstructions}
+
+**Critères de recherche :**
+- **Mots-clés / Compétences :** "${skills.join(', ')}"
+- **Lieu :** "${location}"
+- **Type de contrat :** "${contractTypes.length > 0 ? contractTypes.join(', ') : 'Tous types'}"
+
+**Instruction sur la date de publication :** ${dateFilterInstruction}
+
+**Instructions pour la réponse :**
+1.  **Priorité à la pertinence et à la quantité :** Trouve le plus grand nombre possible d'offres (vise plus de 50) qui correspondent au mieux aux compétences et au lieu. Si les résultats sont rares, élargis la recherche (localités proches, compétences connexes) pour atteindre l'objectif de quantité.
+2.  **Format de sortie :** Retourne les résultats sous forme d'un tableau JSON. Chaque objet du tableau doit représenter une offre d'emploi.
+
+3.  **Champs à extraire pour chaque offre :**
+    *   \`title\`: Titre exact du poste.
+    *   \`company\`: Nom de l'entreprise qui recrute.
+    *   \`location\`: Ville.
+    *   \`description\`: Résumé concis (2-3 phrases).
+    *   \`source\`: Nom du site web source (ex: "LinkedIn", "Malt").
+    *   \`url\`: **Crucial :** URL directe et publique de l'offre.
+    *   \`phone\`: **Recherche active requise.** Le numéro de téléphone standard de l'entreprise.
+    *   \`address\`: **Recherche active requise.** L'adresse physique complète du bureau ou de l'agence.
+    *   \`companyWebsite\`: (Optionnel) URL du site de l'entreprise.
+    *   \`hiringEmail\`: (Optionnel) Email de contact pour postuler.
+
+4.  **Exigence de recherche de coordonnées (Adresse et Téléphone) :**
+    *   Ceci est une étape **OBLIGATOIRE**. Pour chaque entreprise, tu dois activement rechercher son numéro de téléphone principal et son adresse physique complète.
+    *   **Méthode :** Si l'annonce ne les contient pas, effectue une recherche Google sur "[Nom de l'entreprise] [Ville]" pour trouver leur site officiel ou leur fiche Google Business.
+    *   **Exemple de résultat attendu :**
+        \`\`\`json
+        {
+          "title": "Plaquiste H/F",
+          "company": "Domino Missions Toulouse",
+          "location": "Toulouse",
+          "description": "Préparation et sécurisation des zones de travaux...",
+          "url": "https://www.hellowork.com/fr-fr/emplois/xxxx.html",
+          "source": "hellowork.com",
+          "phone": "05 61 23 45 67",
+          "address": "10 Place de la Bourse, 31000 Toulouse, France"
+        }
+        \`\`\`
+    *   Ne retourne les champs \`phone\` et \`address\` que si tu trouves des informations **vérifiables**. Si, après une recherche approfondie, aucune information n'est disponible, tu peux omettre ces clés. Ne les invente jamais.
+
+5.  **Cas sans résultat :** Si, après une recherche approfondie, aucune offre pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`. N'invente pas d'offres.
+6.  **Qualité avant tout :** Assure-toi que la sortie est un JSON valide et bien formaté, sans texte ou démarque de code (comme \`\`\`json) autour.`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',

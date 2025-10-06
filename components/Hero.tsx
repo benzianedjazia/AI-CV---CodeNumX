@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import type { CvData } from '../types';
 import { ManualCvForm } from './ManualCvForm';
+import { CvPreview } from './CvPreview';
 
 declare const pdfjsLib: any;
 
@@ -78,7 +79,7 @@ const TabButton: React.FC<{
 );
 
 export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
-  const [cvInput, setCvInput] = useState<CvInput>({ type: 'text', content: '' });
+  const [cvInput, setCvInput] = useState<CvInput>({ type: 'manual', data: initialCvData });
   const [searchOptions, setSearchOptions] = useState<SearchOptions>({
     location: '',
     contractTypes: [],
@@ -91,6 +92,7 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [templateKey, setTemplateKey] = useState('modern');
 
   const handleManualCvDataChange = useCallback((data: CvData) => {
     setCvInput({ type: 'manual', data });
@@ -184,7 +186,7 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
   }
 
   return (
-    <div className="w-full max-w-4xl text-center flex flex-col items-center">
+    <div className="w-full max-w-7xl text-center flex flex-col items-center">
       <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
         Optimisez votre recherche d'emploi
       </h2>
@@ -242,10 +244,21 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
            )}
 
            {activeTab === 'manual' && (
-              <ManualCvForm 
-                cvData={manualDataForForm}
-                onCvDataChange={handleManualCvDataChange} 
-              />
+              <div className="flex flex-col lg:flex-row gap-8">
+                <div className="lg:w-1/2">
+                   <ManualCvForm 
+                    cvData={manualDataForForm}
+                    onCvDataChange={handleManualCvDataChange} 
+                  />
+                </div>
+                <div className="lg:w-1/2">
+                  <CvPreview 
+                    cvData={manualDataForForm}
+                    templateKey={templateKey}
+                    onTemplateChange={setTemplateKey}
+                  />
+                </div>
+              </div>
            )}
         </div>
 

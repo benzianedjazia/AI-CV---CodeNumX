@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import type { CvInput, SearchOptions } from './components/Hero';
@@ -9,8 +9,25 @@ import type { Application, CvData, LoadingState } from './types';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { BulkConfirmationModal } from './components/BulkConfirmationModal';
 import { RecruiterSpace } from './components/RecruiterSpace';
+import { HomePage } from './components/HomePage';
+import { LoginPage } from './components/LoginPage';
+import { SignUpPage } from './components/SignUpPage';
+import { useAuth } from './hooks/useAuth';
+import { InterviewCoachModal } from './components/InterviewCoachModal';
+import { useTranslations } from './hooks/useTranslations';
 
 const App: React.FC = () => {
+  const { language } = useTranslations();
+   
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  }, [language]);
+
+  // Auth and page state
+  const { user, login, signup, logout, isAuthenticated, socialLogin } = useAuth();
+  const [page, setPage] = useState<'home' | 'login' | 'signup'>('home');
+
   // State for candidate flow
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [applications, setApplications] = useState<Application[]>([]);
@@ -20,9 +37,21 @@ const App: React.FC = () => {
   const [isBulkConfirming, setIsBulkConfirming] = useState(false);
   const [appsToBulkConfirm, setAppsToBulkConfirm] = useState<Application[]>([]);
   const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+  const [appForInterview, setAppForInterview] = useState<Application | null>(null);
+
 
   // State for app mode
   const [mode, setMode] = useState<'candidate' | 'recruiter'>('candidate');
+  
+  const handleLogout = () => {
+      logout();
+      setPage('home');
+      // Reset app state
+      setLoadingState('idle');
+      setApplications([]);
+      setCvData(null);
+      setError(null);
+  }
 
   const handleAnalysis = useCallback(async (cvInput: CvInput, searchOptions: SearchOptions) => {
     let currentStep: LoadingState = 'parsing';
@@ -89,13 +118,13 @@ const App: React.FC = () => {
     setApplications(prev => prev.map(app => app.id === appId ? { ...app, status: 'GeneratingLetter' } : app));
 
     try {
-      const coverLetter = await geminiService.generateCoverLetter(cvData, appToUpdate.job);
+      const coverLetter = await geminiService.generateCoverLetter(cvData, appToUpdate.job, language);
       setApplications(prev => prev.map(app => app.id === appId ? { ...app, status: 'LetterGenerated', coverLetter } : app));
     } catch (err) {
       console.error(err);
       setApplications(prev => prev.map(app => app.id === appId ? { ...app, status: 'Error' } : app));
     }
-  }, [cvData, applications]);
+  }, [cvData, applications, language]);
 
   const handleApply = useCallback((id: string) => {
     const appToApply = applications.find(app => app.id === id);
@@ -172,6 +201,18 @@ const App: React.FC = () => {
      setAppsToBulkConfirm([]);
   }, []);
 
+  const handleStartInterview = useCallback((appId: string) => {
+    const app = applications.find(a => a.id === appId);
+    if (app) {
+      setAppForInterview(app);
+    }
+  }, [applications]);
+
+  const handleCloseInterview = () => {
+    setAppForInterview(null);
+  };
+
+
   const reset = () => {
     setLoadingState('idle');
     setApplications([]);
@@ -180,65 +221,101 @@ const App: React.FC = () => {
     setGroundingChunks([]);
   };
 
-  const renderCandidateSpace = () => (
-    <>
-      {loadingState === 'idle' && <Hero onAnalyze={handleAnalysis} />}
-      
-      {(loadingState === 'parsing' || loadingState === 'findingJobs') && (
-        <LoadingIndicator state={loadingState} />
-      )}
+  const { t } = useTranslations();
 
-      {loadingState === 'error' && (
-        <div className="text-center bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg relative w-full max-w-2xl">
-          <strong className="font-bold">Erreur!</strong>
-          <p>{error}</p>
-          <button
-            onClick={reset}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
+  const renderAppContent = () => {
+    if (!isAuthenticated) {
+      switch (page) {
+        case 'login':
+          return <LoginPage onLogin={login} onNavigate={setPage} onSocialLogin={socialLogin} />;
+        case 'signup':
+          return <SignUpPage onSignUp={signup} onNavigate={setPage} onSocialLogin={socialLogin} />;
+        case 'home':
+        default:
+          return <HomePage onNavigate={setPage} />;
+      }
+    }
+    
+    const renderCandidateSpace = () => (
+      <>
+        {loadingState === 'idle' && <Hero onAnalyze={handleAnalysis} />}
+        {(loadingState === 'parsing' || loadingState === 'findingJobs') && (
+          <LoadingIndicator state={loadingState} />
+        )}
+        {loadingState === 'error' && (
+          <div className="text-center bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg relative w-full max-w-2xl">
+            <strong className="font-bold">{t('app.errorTitle')}</strong>
+            <p>{error}</p>
+            <button
+              onClick={reset}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              {t('app.retryButton')}
+            </button>
+          </div>
+        )}
+        {loadingState === 'results' && cvData && (
+          <ResultsDashboard 
+            applications={applications} 
+            cvData={cvData}
+            onGenerateLetter={handleGenerateLetter}
+            onApply={handleApply}
+            onReset={reset}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
+            onBulkGenerate={handleBulkGenerate}
+            onBulkApply={handleBulkApply}
+            groundingChunks={groundingChunks}
+            onStartInterview={handleStartInterview}
+          />
+        )}
+        {appToConfirm && (
+          <ConfirmationModal
+            application={appToConfirm}
+            onConfirm={() => handleConfirmSent(appToConfirm.id)}
+            onCancel={() => handleCancelConfirmation(appToConfirm.id)}
+          />
+        )}
+        {isBulkConfirming && (
+           <BulkConfirmationModal
+            applications={appsToBulkConfirm}
+            onConfirm={handleConfirmBulkSent}
+            onCancel={handleCancelBulkConfirmation}
+           />
+        )}
+        {appForInterview && cvData && (
+            <InterviewCoachModal
+                application={appForInterview}
+                cvData={cvData}
+                onClose={handleCloseInterview}
+            />
+        )}
+      </>
+    );
 
-      {loadingState === 'results' && (
-        <ResultsDashboard 
-          applications={applications} 
-          onGenerateLetter={handleGenerateLetter}
-          onApply={handleApply}
-          onReset={reset}
-          onToggleSelect={handleToggleSelect}
-          onToggleSelectAll={handleToggleSelectAll}
-          onBulkGenerate={handleBulkGenerate}
-          onBulkApply={handleBulkApply}
-          groundingChunks={groundingChunks}
-        />
-      )}
-
-      {appToConfirm && (
-        <ConfirmationModal
-          application={appToConfirm}
-          onConfirm={() => handleConfirmSent(appToConfirm.id)}
-          onCancel={() => handleCancelConfirmation(appToConfirm.id)}
-        />
-      )}
-      
-      {isBulkConfirming && (
-         <BulkConfirmationModal
-          applications={appsToBulkConfirm}
-          onConfirm={handleConfirmBulkSent}
-          onCancel={handleCancelBulkConfirmation}
-         />
-      )}
-    </>
-  );
+    return (
+      <>
+        <Header mode={mode} onModeChange={setMode} userEmail={user?.email || null} onLogout={handleLogout} />
+        <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center w-full">
+          {mode === 'candidate' ? renderCandidateSpace() : <RecruiterSpace />}
+        </main>
+      </>
+    );
+  };
+  
+  const mainContainerClass = !isAuthenticated
+    ? "flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center justify-center"
+    : "";
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Header mode={mode} onModeChange={setMode} />
-      <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center">
-        {mode === 'candidate' ? renderCandidateSpace() : <RecruiterSpace />}
-      </main>
+      {isAuthenticated ? (
+         renderAppContent()
+      ) : (
+        <main className={mainContainerClass}>
+            {renderAppContent()}
+        </main>
+      )}
     </div>
   );
 };

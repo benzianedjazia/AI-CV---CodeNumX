@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import type { CvData } from '../types';
 import { cvGenerator } from '../services/cvGenerator';
 import { DownloadIcon } from './icons/DownloadIcon';
+import { useTranslations } from '../hooks/useTranslations';
 
 interface CvPreviewProps {
   cvData: CvData;
@@ -11,6 +12,7 @@ interface CvPreviewProps {
 
 export const CvPreview: React.FC<CvPreviewProps> = ({ cvData, templateKey, onTemplateChange }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { t } = useTranslations();
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -30,7 +32,7 @@ export const CvPreview: React.FC<CvPreviewProps> = ({ cvData, templateKey, onTem
 
   return (
     <div className="sticky top-8">
-      <h3 className="font-semibold mb-2 text-gray-800 text-left">Aperçu et modèles</h3>
+      <h3 className="font-semibold mb-2 text-gray-800 text-left">{t('cvPreview.title')}</h3>
       
       <div className="mb-4 bg-gray-100 p-2 rounded-lg flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -51,10 +53,10 @@ export const CvPreview: React.FC<CvPreviewProps> = ({ cvData, templateKey, onTem
         <button
           onClick={handleDownload}
           className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-          aria-label="Télécharger le CV en PNG"
+          aria-label={t('cvPreview.downloadAria')}
         >
           <DownloadIcon className="h-4 w-4" />
-          <span>Télécharger (PNG)</span>
+          <span>{t('cvPreview.downloadButton')}</span>
         </button>
       </div>
 
@@ -65,7 +67,7 @@ export const CvPreview: React.FC<CvPreviewProps> = ({ cvData, templateKey, onTem
           height={cvGenerator.dimensions.height}
           className="shadow-lg mx-auto"
           style={{ width: '100%', maxWidth: `${cvGenerator.dimensions.width}px`, height: 'auto' }}
-          aria-label="Aperçu du CV"
+          aria-label={t('cvPreview.canvasAria')}
         />
       </div>
     </div>

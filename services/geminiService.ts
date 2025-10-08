@@ -111,7 +111,7 @@ async function createCvFromLinkedIn(linkedinUrl: string): Promise<CvData> {
 
 async function findJobs(skills: string[], location: string, contractTypes: string[], datePosted: string): Promise<{ jobs: Job[], groundingChunks: any[] }> {
   
-  let specificInstructions = `Ta mission est de fournir une liste de résultats aussi riche et pertinente que possible, en visant **plus de 50 offres d'emploi**.`;
+  let specificInstructions = `Ta mission est de fournir une liste de résultats aussi riche et pertinente que possible, en visant **environ 15 offres d'emploi**.`;
 
   if (contractTypes.some(ct => ['Freelance', 'Sous-traitance'].includes(ct))) {
     specificInstructions += `\n**Attention particulière pour les freelances/sous-traitants :** Cherche activement des "missions", "projets", ou des postes de "consultant". Explore les plateformes spécialisées pour freelances (comme Malt, Freelance-info, etc.) en plus des sites d'emploi traditionnels.`;
@@ -132,40 +132,41 @@ async function findJobs(skills: string[], location: string, contractTypes: strin
 **Instruction sur la date de publication :** ${dateFilterInstruction}
 
 **Instructions pour la réponse :**
-1.  **Priorité à la pertinence et à la quantité :** Trouve le plus grand nombre possible d'offres (vise plus de 50) qui correspondent au mieux aux compétences et au lieu. Si les résultats sont rares, élargis la recherche (localités proches, compétences connexes) pour atteindre l'objectif de quantité.
+1.  **Priorité à la pertinence et à la quantité :** Trouve un bon nombre d'offres (vise environ 15) qui correspondent au mieux aux compétences et au lieu. Si les résultats sont rares, élargis la recherche (localités proches, compétences connexes) pour atteindre l'objectif de quantité.
 2.  **Format de sortie :** Retourne les résultats sous forme d'un tableau JSON. Chaque objet du tableau doit représenter une offre d'emploi.
 
 3.  **Champs à extraire pour chaque offre :**
     *   \`title\`: Titre exact du poste.
     *   \`company\`: Nom de l'entreprise qui recrute.
     *   \`location\`: Ville.
-    *   \`description\`: Résumé concis (2-3 phrases).
+    *   \`description\`: Description détaillée et complète du poste (missions, profil, compétences, avantages). Vise au moins 100 mots.
     *   \`source\`: Nom du site web source (ex: "LinkedIn", "Malt").
     *   \`url\`: **Crucial :** URL directe et publique de l'offre.
     *   \`phone\`: **Recherche active requise.** Le numéro de téléphone standard de l'entreprise.
     *   \`address\`: **Recherche active requise.** L'adresse physique complète du bureau ou de l'agence.
     *   \`companyWebsite\`: (Optionnel) URL du site de l'entreprise.
-    *   \`hiringEmail\`: (Optionnel) Email de contact pour postuler.
+    *   \`hiringEmail\`: **Recherche active requise.** L'email de contact pour les candidatures.
 
-4.  **MISSION CRITIQUE : Recherche approfondie des coordonnées (Adresse et Téléphone)**
-    *   Ta mission la plus importante est de trouver le numéro de téléphone et l'adresse physique de chaque entreprise. C'est **non négociable**. Tu ne dois **JAMAIS** te contenter de l'offre d'emploi seule.
+4.  **MISSION CRITIQUE : Recherche approfondie des coordonnées (Email, Adresse, Téléphone)**
+    *   Ta mission la plus importante est de trouver **l'email de contact RH/recrutement**, le numéro de téléphone et l'adresse physique de chaque entreprise. C'est **non négociable**. Tu ne dois **JAMAIS** te contenter de l'offre d'emploi seule.
     *   **Stratégie de recherche OBLIGATOIRE en plusieurs étapes :**
         1.  **Analyse de l'annonce :** Cherche d'abord dans le texte de l'annonce.
-        2.  **Recherche Google Ciblée :** Si l'annonce est incomplète, tu DOIS effectuer une nouvelle recherche Google avec les termes : \`"[Nom de l'entreprise] [Ville] téléphone adresse"\`.
-        3.  **Exploration des sites web :** Consulte la page "Contact", "À propos" ou le pied de page du site officiel de l'entreprise pour trouver ces informations.
-        4.  **Utilisation de Pages Jaunes / Google Maps :** Si les étapes précédentes échouent, utilise des requêtes comme \`"[Nom de l'entreprise] [Ville] sur Pages Jaunes"\` ou cherche directement sur Google Maps.
-    *   **Objectif :** Remplir les champs \`phone\` et \`address\` pour **chaque offre**. Ne les omets que si, et seulement si, après avoir suivi TOUTES ces étapes, l'information est absolument introuvable (par exemple, pour une entreprise 100% en télétravail sans siège social public).
+        2.  **Recherche Google Ciblée :** Si l'annonce est incomplète, tu DOIS effectuer une nouvelle recherche Google avec des termes comme : \`"email recrutement [Nom de l'entreprise]"\`, \`"carrières [Nom de l'entreprise]"\`, ou \`"[Nom de l'entreprise] [Ville] téléphone adresse"\`.
+        3.  **Exploration des sites web :** Consulte la page "Contact", "Carrières", "À propos" ou le pied de page du site officiel de l'entreprise pour trouver ces informations. Cherche des adresses comme "rh@", "jobs@", "recrutement@", "careers@".
+        4.  **Utilisation de Pages Jaunes / Google Maps :** Si les étapes précédentes échouent pour l'adresse/téléphone, utilise des requêtes comme \`"[Nom de l'entreprise] [Ville] sur Pages Jaunes"\` ou cherche directement sur Google Maps.
+    *   **Objectif :** Remplir les champs \`hiringEmail\`, \`phone\` et \`address\` pour **chaque offre**. Ne les omets que si, et seulement si, après avoir suivi TOUTES ces étapes, l'information est absolument introuvable (par exemple, pour une entreprise 100% en télétravail sans siège social public ou qui n'accepte les candidatures que via un formulaire).
     *   **Exemple de résultat PARFAIT :**
         \`\`\`json
         {
           "title": "Plaquiste H/F",
           "company": "Domino Missions Toulouse",
           "location": "Toulouse",
-          "description": "Préparation et sécurisation des zones de travaux...",
+          "description": "Nous recherchons un plaquiste expérimenté pour rejoindre notre équipe. Vos missions incluront la préparation des supports, la pose des panneaux préfabriqués (placo, BA13), le montage des cloisons, des sols et des faux plafonds. Vous réaliserez également les jointures et les finitions.",
           "url": "https://www.hellowork.com/fr-fr/emplois/xxxx.html",
           "source": "hellowork.com",
           "phone": "05 61 23 45 67",
-          "address": "10 Place de la Bourse, 31000 Toulouse, France"
+          "address": "10 Place de la Bourse, 31000 Toulouse, France",
+          "hiringEmail": "toulouse@domino-missions.com"
         }
         \`\`\`
     *   L'invention d'informations est strictement interdite. La précision est capitale.
@@ -206,23 +207,21 @@ async function findJobs(skills: string[], location: string, contractTypes: strin
   }
 }
 
-async function generateCoverLetter(cvData: CvData, job: Job): Promise<string> {
-  const currentDate = new Date().toLocaleDateString('fr-FR', {
+async function generateCoverLetter(cvData: CvData, job: Job, language: string): Promise<string> {
+  const dateLocale = language === 'ar' ? 'ar-SA' : language === 'en' ? 'en-US' : 'fr-FR';
+  const currentDate = new Date().toLocaleDateString(dateLocale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-  const prompt = `Vous êtes un coach de carrière expert. Rédigez une lettre de motivation complète et percutante.
+  const prompt = `Vous êtes un coach de carrière expert. Rédigez une lettre de motivation complète et percutante dans la langue suivante : ${language}.
 
 **Instructions :**
-1.  Structurez la lettre avec un en-tête professionnel :
-    - D'abord, les informations du candidat : Nom complet, Email, Téléphone, et URL LinkedIn (si fournie). Chaque information sur une nouvelle ligne.
-    - Ensuite, aligné à droite, la date du jour.
-    - Puis, les informations du destinataire : Nom de l'entreprise, et l'adresse de l'entreprise (si fournie). Chaque information sur une nouvelle ligne.
-2.  Adressez la lettre de manière professionnelle (ex: "Madame, Monsieur,").
+1.  Structurez la lettre avec un en-tête professionnel.
+2.  Adressez la lettre de manière professionnelle.
 3.  Le corps de la lettre doit être personnalisé pour l'offre d'emploi, en mettant en évidence les compétences et expériences les plus pertinentes du CV.
-4.  Terminez par une formule de politesse professionnelle (ex: "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.") et le nom complet du candidat.
+4.  Terminez par une formule de politesse professionnelle et le nom complet du candidat.
 5.  Le ton doit être enthousiaste et confiant.
 6.  Ne laissez AUCUN placeholder (ex: '[Votre Nom]'). La lettre doit être prête à être envoyée.
 
@@ -265,13 +264,13 @@ Instructions détaillées :
 Informations à extraire pour chaque candidat :
 - name: Le nom complet.
 - jobTitle: Le titre de poste actuel.
-- photoUrl: L'URL directe et publique de la photo de profil.
+- photoUrl: **MISSION CRITIQUE :** L'URL directe et publique de la photo de profil. Fais tout ton possible pour la trouver. Cherche sur Google Images avec le nom et l'entreprise du candidat pour trouver une photo de profil professionnelle si elle n'est pas directement sur la page source.
 - phone: Le numéro de téléphone (uniquement s'il est publiquement visible).
 - linkedinUrl: L'URL complète et directe du profil LinkedIn public.
 - source: Le site où le profil a été trouvé (ex: "LinkedIn", "GitHub").
 
 Règles de formatage :
-1. Si 'phone' ou 'photoUrl' ne sont pas disponibles, omets ces clés. Ne les invente JAMAIS.
+1. Si 'phone' n'est pas disponible, omets cette clé. Ne l'invente JAMAIS. Pour 'photoUrl', ne l'omets que si, après une recherche approfondie, l'image est absolument introuvable.
 2. 'linkedinUrl' doit être une URL de profil valide et publique, commençant par "https://www.linkedin.com/in/...". Ne retourne jamais de liens de recherche, de liens internes ou d'URL invalides.
 3. Si aucun candidat n'est trouvé, retourne un tableau JSON vide : [].
 4. La sortie doit être une chaîne de caractères JSON valide, sans démarque de code (\`\`\`).`;

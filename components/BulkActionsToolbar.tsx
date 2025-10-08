@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Application } from '../types';
+import { useTranslations } from '../hooks/useTranslations';
 
 interface BulkActionsToolbarProps {
   selectedCount: number;
@@ -18,6 +19,7 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
   onBulkApply,
   applications,
 }) => {
+  const { t } = useTranslations();
   const canBulkGenerate = applications.some(app => app.status === 'Ready' || app.status === 'Error');
   const canBulkApply = applications.some(app => app.status === 'LetterGenerated');
 
@@ -31,8 +33,8 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
           onChange={onToggleSelectAll}
           className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
         />
-        <label htmlFor="select-all" className="ml-3 text-md font-medium text-gray-700">
-          {selectedCount} sélectionné(s)
+        <label htmlFor="select-all" className="ms-3 text-md font-medium text-gray-700">
+          {selectedCount} {t('bulkActions.selected')}
         </label>
       </div>
       <div className="flex items-center gap-2">
@@ -41,14 +43,14 @@ export const BulkActionsToolbar: React.FC<BulkActionsToolbarProps> = ({
           disabled={!canBulkGenerate}
           className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed transition-colors"
         >
-          Générer les lettres
+          {t('bulkActions.generateLetters')}
         </button>
         <button
           onClick={onBulkApply}
           disabled={!canBulkApply}
           className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
         >
-          Postuler (sites externes)
+          {t('bulkActions.apply')}
         </button>
       </div>
     </div>

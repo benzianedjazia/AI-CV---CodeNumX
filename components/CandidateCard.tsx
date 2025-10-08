@@ -4,6 +4,7 @@ import { PhoneIcon } from './icons/PhoneIcon';
 import { LinkedInIcon } from './icons/LinkedInIcon';
 import { ExternalLinkIcon } from './icons/ExternalLinkIcon';
 import { UserIcon } from './icons/UserIcon';
+import { useTranslations } from '../hooks/useTranslations';
 
 interface CandidateCardProps {
   candidate: Candidate;
@@ -11,6 +12,7 @@ interface CandidateCardProps {
 
 export const CandidateCard: React.FC<CandidateCardProps> = ({ candidate }) => {
   const [imageError, setImageError] = useState(false);
+  const { t } = useTranslations();
 
   const showPlaceholder = !candidate.photoUrl || imageError;
 
@@ -38,23 +40,25 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({ candidate }) => {
           <h3 className="text-xl font-bold text-indigo-700">{candidate.name}</h3>
           <p className="text-md font-semibold text-gray-600 -mt-1">{candidate.jobTitle}</p>
           
-          <p className="mt-2 text-sm text-gray-500">Source: <span className="font-medium">{candidate.source}</span></p>
+          <p className="mt-2 text-sm text-gray-500">{t('candidateCard.source')}: <span className="font-medium">{candidate.source}</span></p>
           
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-x-6 gap-y-2 text-sm text-gray-700">
-            <a 
-              href={candidate.linkedinUrl} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="inline-flex items-center text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              <LinkedInIcon className="h-5 w-5 mr-2"/>
-              <span>Profil LinkedIn</span>
-              <ExternalLinkIcon className="h-4 w-4 ml-1.5 text-gray-400"/>
-            </a>
+            {candidate.linkedinUrl && (
+              <a 
+                href={candidate.linkedinUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                <LinkedInIcon className="h-5 w-5 me-2"/>
+                <span>{t('candidateCard.linkedinProfile')}</span>
+                <ExternalLinkIcon className="h-4 w-4 ms-1.5 text-gray-400"/>
+              </a>
+            )}
             
             {candidate.phone && (
               <div className="inline-flex items-center">
-                <PhoneIcon className="h-5 w-5 mr-2 text-gray-400" />
+                <PhoneIcon className="h-5 w-5 me-2 text-gray-400" />
                 <span>{candidate.phone}</span>
               </div>
             )}

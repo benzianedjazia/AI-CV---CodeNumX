@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Application } from '../types';
+import { useTranslations } from '../hooks/useTranslations';
 
 interface BulkConfirmationModalProps {
   applications: Application[];
@@ -9,6 +10,8 @@ interface BulkConfirmationModalProps {
 
 export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ applications, onConfirm, onCancel }) => {
   const count = applications.length;
+  const { t } = useTranslations();
+
   if (count === 0) return null;
     
   return (
@@ -20,12 +23,12 @@ export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ ap
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-800">Confirmer les candidatures</h2>
+          <h2 className="text-xl font-bold text-gray-800">{t('bulkConfirmation.title')}</h2>
           <p className="mt-2 text-gray-600">
-             Plusieurs onglets se sont ouverts pour vous permettre de finaliser vos <span className="font-semibold">{count}</span> candidature(s) sur les sites des recruteurs.
+             {t('bulkConfirmation.description1_p1')} <span className="font-semibold">{count}</span> {t('bulkConfirmation.description1_p2')}
           </p>
           <p className="mt-4 text-gray-600">
-            Après avoir postulé sur chaque site, veuillez cliquer sur le bouton ci-dessous pour confirmer que vos candidatures ont bien été envoyées.
+            {t('bulkConfirmation.description2')}
           </p>
         </div>
         <div className="p-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
@@ -33,13 +36,13 @@ export const BulkConfirmationModal: React.FC<BulkConfirmationModalProps> = ({ ap
             onClick={onCancel}
             className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
           >
-            Annuler
+            {t('bulkConfirmation.cancelButton')}
           </button>
           <button 
             onClick={onConfirm}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           >
-            Candidatures envoyées !
+            {t('bulkConfirmation.confirmButton')}
           </button>
         </div>
       </div>

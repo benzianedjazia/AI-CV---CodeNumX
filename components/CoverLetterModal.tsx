@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Application } from '../types';
+import { useTranslations } from '../hooks/useTranslations';
 
 interface CoverLetterModalProps {
   application: Application;
@@ -32,18 +33,20 @@ const linkify = (text?: string): React.ReactNode => {
 
 export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({ application, onClose }) => {
   const { job, coverLetter } = application;
-  const [copyButtonText, setCopyButtonText] = useState('Copier le texte');
+  const { t } = useTranslations();
+  
+  const [copyButtonText, setCopyButtonText] = useState(t('coverLetter.copyButton'));
 
 
   const copyToClipboard = () => {
     if (coverLetter) {
       navigator.clipboard.writeText(coverLetter).then(() => {
-        setCopyButtonText('Copié !');
-        setTimeout(() => setCopyButtonText('Copier le texte'), 2000);
+        setCopyButtonText(t('coverLetter.copiedButton'));
+        setTimeout(() => setCopyButtonText(t('coverLetter.copyButton')), 2000);
       }).catch(err => {
         console.error('Failed to copy: ', err);
-        setCopyButtonText('Erreur');
-        setTimeout(() => setCopyButtonText('Copier le texte'), 2000);
+        setCopyButtonText(t('coverLetter.errorButton'));
+        setTimeout(() => setCopyButtonText(t('coverLetter.copyButton')), 2000);
       });
     }
   };
@@ -60,8 +63,8 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({ application,
         <div className="p-4 sm:p-6 border-b border-gray-200 bg-white rounded-t-lg">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Lettre de Motivation</h2>
-              <p className="text-md text-gray-600">Pour le poste de <span className="font-semibold">{job.title}</span> chez <span className="font-semibold">{job.company}</span></p>
+              <h2 className="text-2xl font-bold text-gray-800">{t('coverLetter.title')}</h2>
+              <p className="text-md text-gray-600">{t('coverLetter.forPosition')} <span className="font-semibold">{job.title}</span> {t('coverLetter.atCompany')} <span className="font-semibold">{job.company}</span></p>
             </div>
             <button onClick={onClose} className="text-2xl font-light text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
           </div>
@@ -84,7 +87,7 @@ export const CoverLetterModal: React.FC<CoverLetterModalProps> = ({ application,
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
           >
-            Fermer
+            {t('coverLetter.closeButton')}
           </button>
         </div>
       </div>

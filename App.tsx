@@ -1,20 +1,25 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
-import type { CvInput, SearchOptions } from './components/Hero';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { ResultsDashboard } from './components/ResultsDashboard';
 import { geminiService } from './services/geminiService';
-import type { Application, CvData, LoadingState } from './types';
+import type { Application, CvData, LoadingState, CareerTrajectoryAnalysis, JobFitAnalysis, CvInput, SearchOptions } from './types';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { BulkConfirmationModal } from './components/BulkConfirmationModal';
-import { RecruiterSpace } from './components/RecruiterSpace';
 import { HomePage } from './components/HomePage';
 import { LoginPage } from './components/LoginPage';
 import { SignUpPage } from './components/SignUpPage';
 import { useAuth } from './hooks/useAuth';
 import { InterviewCoachModal } from './components/InterviewCoachModal';
 import { useTranslations } from './hooks/useTranslations';
+import { CareerTrajectoryModal } from './components/CareerTrajectoryModal';
+import { JobFitAnalysisModal } from './components/JobFitAnalysisModal';
+import { ApplicationMessageModal } from './components/ApplicationMessageModal';
+import { RecruiterSpace } from './components/RecruiterSpace';
+import { CvRewriterModal } from './components/CvRewriterModal';
+
+type FitAnalysisState = Record<string, { status: 'idle' | 'loading' | 'done' | 'error'; data?: JobFitAnalysis }>;
 
 const App: React.FC = () => {
   const { language } = useTranslations();
@@ -28,6 +33,9 @@ const App: React.FC = () => {
   const { user, login, signup, logout, isAuthenticated, socialLogin } = useAuth();
   const [page, setPage] = useState<'home' | 'login' | 'signup'>('home');
 
+  // App mode state
+  const [mode, setMode] = useState<'candidate' | 'recruiter'>('candidate');
+
   // State for candidate flow
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [applications, setApplications] = useState<Application[]>([]);
@@ -39,9 +47,19 @@ const App: React.FC = () => {
   const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
   const [appForInterview, setAppForInterview] = useState<Application | null>(null);
 
+  // State for new Career Trajectory feature
+  const [isAnalyzingTrajectory, setIsAnalyzingTrajectory] = useState(false);
+  const [trajectoryAnalysis, setTrajectoryAnalysis] = useState<CareerTrajectoryAnalysis | null>(null);
 
-  // State for app mode
-  const [mode, setMode] = useState<'candidate' | 'recruiter'>('candidate');
+  // State for new Job Fit Analysis feature
+  const [fitAnalyses, setFitAnalyses] = useState<FitAnalysisState>({});
+  const [appForFitAnalysis, setAppForFitAnalysis] = useState<Application | null>(null);
+
+  // State for new Application Message feature
+  const [appForMessage, setAppForMessage] = useState<Application | null>(null);
+
+  // State for new CV Rewriter feature
+  const [isCvRewriterOpen, setIsCvRewriterOpen] = useState(false);
   
   const handleLogout = () => {
       logout();
@@ -51,6 +69,7 @@ const App: React.FC = () => {
       setApplications([]);
       setCvData(null);
       setError(null);
+      setMode('candidate');
   }
 
   const handleAnalysis = useCallback(async (cvInput: CvInput, searchOptions: SearchOptions) => {
@@ -60,19 +79,10 @@ const App: React.FC = () => {
     setApplications([]);
     setCvData(null);
     setGroundingChunks([]);
+    setFitAnalyses({});
 
     try {
-      let extractedCvData: CvData;
-
-      if (cvInput.type === 'text' && cvInput.content) {
-        extractedCvData = await geminiService.extractCvInfo(cvInput.content);
-      } else if (cvInput.type === 'linkedin' && cvInput.url) {
-        extractedCvData = await geminiService.createCvFromLinkedIn(cvInput.url);
-      } else if (cvInput.type === 'manual' && cvInput.data) {
-        extractedCvData = cvInput.data;
-      } else {
-        throw new Error("Invalid CV input provided.");
-      }
+      const extractedCvData = await geminiService.parseCvInput(cvInput);
       
       setCvData(extractedCvData);
       
@@ -81,7 +91,8 @@ const App: React.FC = () => {
       
       const { jobs: foundJobs, groundingChunks: foundChunks } = await geminiService.findJobs(
         extractedCvData.skills, 
-        searchOptions.location,
+        searchOptions.country,
+        searchOptions.cities,
         searchOptions.contractTypes,
         searchOptions.datePosted
       );
@@ -211,6 +222,55 @@ const App: React.FC = () => {
   const handleCloseInterview = () => {
     setAppForInterview(null);
   };
+  
+  const handleAnalyzeTrajectory = useCallback(async () => {
+    if (!cvData) return;
+    setIsAnalyzingTrajectory(true);
+    setTrajectoryAnalysis(null);
+    try {
+      const analysis = await geminiService.analyzeCareerTrajectory(cvData, language);
+      setTrajectoryAnalysis(analysis);
+    } catch (err) {
+        console.error("Failed to analyze career trajectory", err);
+        setError(err instanceof Error ? err.message : "An unknown error occurred during trajectory analysis.");
+    } finally {
+        setIsAnalyzingTrajectory(false);
+    }
+  }, [cvData, language]);
+
+  const handleAnalyzeFit = useCallback(async (appId: string) => {
+    const app = applications.find(a => a.id === appId);
+    if (!app || !cvData) return;
+
+    setFitAnalyses(prev => ({ ...prev, [appId]: { status: 'loading' } }));
+
+    try {
+        const analysis = await geminiService.analyzeJobFit(cvData, app.job, language);
+        setFitAnalyses(prev => ({ ...prev, [appId]: { status: 'done', data: analysis } }));
+    } catch (err) {
+        console.error("Failed to analyze job fit", err);
+        setFitAnalyses(prev => ({ ...prev, [appId]: { status: 'error' } }));
+    }
+  }, [applications, cvData, language]);
+
+  const handleOpenFitAnalysis = (appId: string) => {
+      const app = applications.find(a => a.id === appId);
+      if(app && fitAnalyses[appId]?.status === 'done') {
+        setAppForFitAnalysis(app);
+      }
+  };
+
+  const handleOpenMessageModal = (appId: string) => {
+    const app = applications.find(a => a.id === appId);
+    if (app) {
+        setAppForMessage(app);
+    }
+  };
+
+  const handleRewriteComplete = useCallback((newCvData: CvData) => {
+    setCvData(newCvData);
+    setIsCvRewriterOpen(false);
+  }, []);
 
 
   const reset = () => {
@@ -219,6 +279,7 @@ const App: React.FC = () => {
     setCvData(null);
     setError(null);
     setGroundingChunks([]);
+    setFitAnalyses({});
   };
 
   const { t } = useTranslations();
@@ -267,6 +328,13 @@ const App: React.FC = () => {
             onBulkApply={handleBulkApply}
             groundingChunks={groundingChunks}
             onStartInterview={handleStartInterview}
+            onAnalyzeTrajectory={handleAnalyzeTrajectory}
+            isAnalyzingTrajectory={isAnalyzingTrajectory}
+            fitAnalyses={fitAnalyses}
+            onAnalyzeFit={handleAnalyzeFit}
+            onOpenFitAnalysis={handleOpenFitAnalysis}
+            onOpenMessageModal={handleOpenMessageModal}
+            onOpenCvRewriter={() => setIsCvRewriterOpen(true)}
           />
         )}
         {appToConfirm && (
@@ -290,12 +358,44 @@ const App: React.FC = () => {
                 onClose={handleCloseInterview}
             />
         )}
+        {trajectoryAnalysis && (
+            <CareerTrajectoryModal
+                analysisData={trajectoryAnalysis}
+                onClose={() => setTrajectoryAnalysis(null)}
+            />
+        )}
+         {appForFitAnalysis && fitAnalyses[appForFitAnalysis.id]?.data && (
+            <JobFitAnalysisModal
+                application={appForFitAnalysis}
+                analysis={fitAnalyses[appForFitAnalysis.id].data!}
+                onClose={() => setAppForFitAnalysis(null)}
+            />
+        )}
+        {appForMessage && cvData && (
+            <ApplicationMessageModal
+                application={appForMessage}
+                cvData={cvData}
+                onClose={() => setAppForMessage(null)}
+            />
+        )}
+        {isCvRewriterOpen && cvData && (
+            <CvRewriterModal
+                cvData={cvData}
+                onClose={() => setIsCvRewriterOpen(false)}
+                onRewriteComplete={handleRewriteComplete}
+            />
+        )}
       </>
     );
 
     return (
       <>
-        <Header mode={mode} onModeChange={setMode} userEmail={user?.email || null} onLogout={handleLogout} />
+        <Header 
+            userEmail={user?.email || null} 
+            onLogout={handleLogout}
+            mode={mode}
+            onModeChange={setMode}
+        />
         <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col items-center w-full">
           {mode === 'candidate' ? renderCandidateSpace() : <RecruiterSpace />}
         </main>

@@ -4,30 +4,36 @@ import type { Candidate } from '../types';
 import { CandidateCard } from './CandidateCard';
 import { UserGroupIcon } from './icons/UserGroupIcon';
 import { useTranslations } from '../hooks/useTranslations';
+import { LocationFilter } from './LocationFilter';
 
-const RecruiterLoadingIndicator: React.FC = () => {
-    const { t } = useTranslations();
-    return (
-        <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-2xl space-y-6 w-full max-w-md">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
-            <p className="text-xl font-semibold text-gray-700">{t('recruiter.loadingTitle')}</p>
-            <p className="text-sm text-gray-500 text-center">{t('recruiter.loadingDescription')}</p>
-        </div>
-    );
-}
+const RecruiterLoadingIndicator: React.FC<{ title: string, description: string }> = ({ title, description }) => (
+    <div className="flex flex-col items-center justify-center p-10 bg-white rounded-lg shadow-2xl space-y-6 w-full max-w-md mt-10">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
+        <p className="text-xl font-semibold text-gray-700">{title}</p>
+        <p className="text-sm text-gray-500 text-center">{description}</p>
+    </div>
+);
 
-export const RecruiterSpace: React.FC = () => {
+const CandidateFinder: React.FC = () => {
     const { t } = useTranslations();
     const [jobDescription, setJobDescription] = useState('');
-    const [location, setLocation] = useState('');
+    const [location, setLocation] = useState({ country: '', cities: [] });
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searched, setSearched] = useState(false);
+    
+    const handleLocationChange = useCallback((newLocation: { country: string; cities: string[] }) => {
+        setLocation(newLocation);
+    }, []);
 
     const handleSearch = useCallback(async () => {
         if (!jobDescription.trim()) {
             setError(t('recruiter.errorJobDescription'));
+            return;
+        }
+        if (!location.country) {
+            setError(t('hero.errorCountry'));
             return;
         }
 
@@ -37,7 +43,7 @@ export const RecruiterSpace: React.FC = () => {
         setCandidates([]);
 
         try {
-            const { candidates: foundCandidates } = await geminiService.findCandidates(jobDescription, location);
+            const { candidates: foundCandidates } = await geminiService.findCandidates(jobDescription, location.country, location.cities);
             const candidatesWithIds = foundCandidates.map(c => ({
                 ...c,
                 id: `${c.name}-${Math.random()}`.replace(/\s/g, ''),
@@ -53,7 +59,7 @@ export const RecruiterSpace: React.FC = () => {
     }, [jobDescription, location, t]);
 
     return (
-        <div className="w-full max-w-4xl flex flex-col items-center animate-fade-in">
+        <div className="w-full max-w-4xl flex flex-col items-center">
             <UserGroupIcon className="h-16 w-16 text-indigo-200" />
             <h2 className="mt-4 text-4xl font-extrabold text-gray-900 sm:text-5xl text-center">
                 {t('recruiter.title')}
@@ -77,20 +83,13 @@ export const RecruiterSpace: React.FC = () => {
                         disabled={isLoading}
                     />
                 </div>
-                 <div>
-                    <label htmlFor="location" className="block text-lg font-medium text-gray-700">
-                        {t('recruiter.locationLabel')}
-                    </label>
-                    <input
-                        id="location"
-                        type="text"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="mt-2 w-full p-4 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
-                        placeholder={t('recruiter.locationPlaceholder')}
-                        disabled={isLoading}
-                    />
-                </div>
+                
+                <LocationFilter
+                    country={location.country}
+                    cities={location.cities}
+                    onChange={handleLocationChange}
+                    onError={setError}
+                />
 
                 {error && <p className="text-red-500 text-sm">{error}</p>}
                 
@@ -103,8 +102,8 @@ export const RecruiterSpace: React.FC = () => {
                 </button>
             </div>
 
-            <div className="mt-12 w-full">
-                {isLoading && <RecruiterLoadingIndicator />}
+             <div className="mt-12 w-full">
+                {isLoading && <RecruiterLoadingIndicator title={t('recruiter.loadingTitle')} description={t('recruiter.loadingDescription')} />}
 
                 {!isLoading && candidates.length > 0 && (
                     <div className="space-y-4">
@@ -129,6 +128,14 @@ export const RecruiterSpace: React.FC = () => {
                     </div>
                 )}
             </div>
+        </div>
+    )
+}
+
+export const RecruiterSpace: React.FC = () => {
+    return (
+        <div className="w-full max-w-4xl flex flex-col items-center animate-fade-in">
+           <CandidateFinder />
         </div>
     );
 };

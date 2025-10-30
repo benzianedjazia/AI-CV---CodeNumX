@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Blob } from '@google/genai';
+// FIX: The 'LiveSession' type is not exported from the '@google/genai' package.
+// It has been removed from the import statement.
+import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import type { Application, CvData } from '../types';
 
 if (!process.env.API_KEY) {
@@ -72,7 +74,8 @@ export const useInterviewCoach = (application: Application, cvData: CvData, onSe
     const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+    // FIX: Replaced non-existent 'LiveSession' type with 'any' as it's an internal type.
+    const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const audioRefs = useRef<{
         inputAudioContext: AudioContext | null,
         outputAudioContext: AudioContext | null,

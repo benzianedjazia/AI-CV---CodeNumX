@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Application } from '../types';
+import type { Application, JobFitAnalysis } from '../types';
 import { EyeIcon } from './icons/EyeIcon';
 import { PaperAirplaneIcon } from './icons/PaperAirplaneIcon';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
@@ -10,7 +10,9 @@ import { EnvelopeIcon } from './icons/EnvelopeIcon';
 import { BuildingOfficeIcon } from './icons/BuildingOfficeIcon';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { useTranslations } from '../hooks/useTranslations';
-
+import { CalendarIcon } from './icons/CalendarIcon';
+import { ChartBarIcon } from './icons/ChartBarIcon';
+import { ChatBubbleBottomCenterTextIcon } from './icons/ChatBubbleBottomCenterTextIcon';
 
 interface ApplicationCardProps {
   application: Application;
@@ -19,6 +21,10 @@ interface ApplicationCardProps {
   onApply: () => void;
   onToggleSelect: () => void;
   onStartInterview: () => void;
+  fitAnalysis?: { status: 'idle' | 'loading' | 'done' | 'error'; data?: JobFitAnalysis };
+  onAnalyzeFit: () => void;
+  onOpenFitAnalysis: () => void;
+  onOpenMessageModal: () => void;
 }
 
 const getStatusStyles = (status: Application['status']) => {
@@ -113,7 +119,8 @@ const linkify = (text?: string): React.ReactNode => {
 };
 
 
-export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onViewCoverLetter, onGenerateLetter, onApply, onToggleSelect, onStartInterview }) => {
+export const ApplicationCard: React.FC<ApplicationCardProps> = (props) => {
+  const { application, onViewCoverLetter, onGenerateLetter, onApply, onToggleSelect, onStartInterview, fitAnalysis, onAnalyzeFit, onOpenFitAnalysis, onOpenMessageModal } = props;
   const [isExpanded, setIsExpanded] = useState(false);
   const { job, status, isSelected } = application;
   const { t } = useTranslations();
@@ -135,6 +142,12 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
       'Error': t('applicationCard.statusError'),
     };
     return statusMap[status];
+  }
+  
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-100';
+    if (score >= 60) return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
   }
 
   return (
@@ -196,11 +209,19 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
                     </button>
                 )}
             </div>
-             <div className="flex items-center mt-3 text-xs font-semibold text-gray-500 uppercase">
-                {t('applicationCard.source')}: {job.source}
-                <a href={job.url} target="_blank" rel="noopener noreferrer" className="ms-2 text-indigo-600 hover:text-indigo-800">
-                    <ExternalLinkIcon className="h-4 w-4" />
-                </a>
+             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-500">
+                <div className="flex items-center font-semibold uppercase">
+                    {t('applicationCard.source')}: {job.source}
+                    <a href={job.url} target="_blank" rel="noopener noreferrer" className="ms-2 text-indigo-600 hover:text-indigo-800">
+                        <ExternalLinkIcon className="h-4 w-4" />
+                    </a>
+                </div>
+                {job.datePosted && (
+                    <div className="flex items-center">
+                        <CalendarIcon className="h-4 w-4 me-1.5 text-gray-400" />
+                        <span className="font-medium">{job.datePosted}</span>
+                    </div>
+                )}
             </div>
           </div>
           <div className="w-full md:w-auto flex-shrink-0 flex flex-col md:items-end space-y-2">
@@ -221,14 +242,43 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, o
                      <ActionButton application={application} onGenerateLetter={onGenerateLetter} onApply={onApply} />
                   </div>
                 </div>
-                <button
-                    onClick={onStartInterview}
-                    disabled={!letterIsGenerated}
-                    className="flex items-center justify-center w-full px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors disabled:bg-teal-200 disabled:text-gray-500 disabled:cursor-not-allowed"
-                >
-                    <MicrophoneIcon className="h-5 w-5 me-2" />
-                    {t('applicationCard.interviewCoach')}
-                </button>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        onClick={onStartInterview}
+                        disabled={!letterIsGenerated}
+                        className="flex items-center justify-center w-full px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors disabled:bg-teal-200 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    >
+                        <MicrophoneIcon className="h-5 w-5 me-2" />
+                        {t('applicationCard.interviewCoach')}
+                    </button>
+                    <button
+                        onClick={onOpenMessageModal}
+                        className="flex items-center justify-center w-full px-4 py-2 bg-slate-500 text-white rounded-md hover:bg-slate-600 transition-colors"
+                    >
+                        <ChatBubbleBottomCenterTextIcon className="h-5 w-5 me-2" />
+                        {t('applicationCard.generateMessage')}
+                    </button>
+                </div>
+                
+                 <div className="w-full pt-2 mt-2 border-t">
+                    {fitAnalysis?.status === 'done' && fitAnalysis.data ? (
+                       <button 
+                         onClick={onOpenFitAnalysis}
+                         className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors font-bold ${getScoreColor(fitAnalysis.data.matchScore)}`}
+                       >
+                         <span>{t('applicationCard.matchScore')}: {fitAnalysis.data.matchScore}%</span>
+                       </button>
+                    ) : (
+                       <button
+                           onClick={onAnalyzeFit}
+                           disabled={fitAnalysis?.status === 'loading'}
+                           className="flex items-center justify-center w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:bg-gray-400 disabled:cursor-wait"
+                       >
+                           <ChartBarIcon className="h-5 w-5 me-2" />
+                           {fitAnalysis?.status === 'loading' ? t('applicationCard.analyzingFit') : t('applicationCard.analyzeFit')}
+                       </button>
+                   )}
+                </div>
             </div>
             {status === 'Sent' && <p className="text-xs text-gray-500 mt-1">{t('applicationCard.sentConfirmation')}</p>}
           </div>

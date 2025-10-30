@@ -1,21 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import type { CvData } from '../types';
+import React, { useState, useCallback, useRef } from 'react';
+import type { CvData, CvInput, SearchOptions } from '../types';
 import { ManualCvForm } from './ManualCvForm';
 import { CvPreview } from './CvPreview';
 import { useTranslations } from '../hooks/useTranslations';
+import { LocationFilter } from './LocationFilter';
 
 declare const pdfjsLib: any;
 
-export type CvInput = 
-  | { type: 'text'; content: string }
-  | { type: 'linkedin'; url: string }
-  | { type: 'manual'; data: CvData };
-
-export interface SearchOptions {
-  location: string;
-  contractTypes: string[];
-  datePosted: string;
-}
 interface HeroProps {
   onAnalyze: (cvInput: CvInput, searchOptions: SearchOptions) => void;
 }
@@ -84,7 +75,8 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
   
   const [cvInput, setCvInput] = useState<CvInput>({ type: 'manual', data: initialCvData });
   const [searchOptions, setSearchOptions] = useState<SearchOptions>({
-    location: '',
+    country: '',
+    cities: [],
     contractTypes: [],
     datePosted: '',
   });
@@ -125,8 +117,8 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
        finalCvInput = { type: 'manual', data };
     }
 
-    if (!searchOptions.location.trim()) {
-      setError(t('hero.errorLocation'));
+    if (!searchOptions.country.trim()) {
+      setError(t('hero.errorCountry'));
       return;
     }
 
@@ -187,6 +179,10 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
       return { ...prev, contractTypes: newContractTypes };
     });
   }
+  
+  const handleLocationChange = useCallback((location: { country: string; cities: string[] }) => {
+    setSearchOptions(prev => ({ ...prev, ...location }));
+  }, []);
 
   return (
     <div className="w-full max-w-7xl text-center flex flex-col items-center">
@@ -270,19 +266,13 @@ export const Hero: React.FC<HeroProps> = ({ onAnalyze }) => {
             {t('hero.step2')}
           </label>
            <div className="space-y-4">
-               <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('hero.locationLabel')}
-                  </label>
-                  <input
-                    id="location"
-                    type="text"
-                    value={searchOptions.location}
-                    onChange={(e) => setSearchOptions({...searchOptions, location: e.target.value})}
-                    className="w-full p-4 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
-                    placeholder={t('hero.locationPlaceholder')}
-                  />
-               </div>
+              <LocationFilter
+                country={searchOptions.country}
+                cities={searchOptions.cities}
+                onChange={handleLocationChange}
+                onError={setError}
+              />
+              
                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {t('hero.contractTypeLabel')}

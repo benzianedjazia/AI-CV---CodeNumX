@@ -1,40 +1,25 @@
 import React from 'react';
 import { BriefcaseIcon } from './icons/BriefcaseIcon';
-import { UserIcon } from './icons/UserIcon';
-import { UserGroupIcon } from './icons/UserGroupIcon';
 import { LogoutIcon } from './icons/LogoutIcon';
 import { useTranslations } from '../hooks/useTranslations';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface HeaderProps {
-    mode: 'candidate' | 'recruiter';
-    onModeChange: (mode: 'candidate' | 'recruiter') => void;
     userEmail: string | null;
     onLogout: () => void;
+    mode: 'candidate' | 'recruiter';
+    onModeChange: (mode: 'candidate' | 'recruiter') => void;
 }
 
-const ModeButton: React.FC<{
-    isActive: boolean;
-    onClick: () => void;
-    children: React.ReactNode;
-}> = ({ isActive, onClick, children }) => {
-    return (
-        <button
-            onClick={onClick}
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                isActive
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-200'
-            }`}
-        >
-            {children}
-        </button>
-    )
-}
-
-
-export const Header: React.FC<HeaderProps> = ({ mode, onModeChange, userEmail, onLogout }) => {
+export const Header: React.FC<HeaderProps> = ({ userEmail, onLogout, mode, onModeChange }) => {
   const { t } = useTranslations();
+  
+  const handleModeChange = (newMode: 'candidate' | 'recruiter') => {
+    if (mode !== newMode) {
+        onModeChange(newMode);
+    }
+  }
+
   return (
     <header className="bg-white shadow-md w-full">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -46,17 +31,26 @@ export const Header: React.FC<HeaderProps> = ({ mode, onModeChange, userEmail, o
             </h1>
           </div>
 
+           <div className="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+                onClick={() => handleModeChange('candidate')}
+                className={`px-4 py-1 text-sm font-semibold rounded-md transition-colors ${
+                    mode === 'candidate' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:bg-gray-200'
+                }`}
+            >
+                {t('header.candidateMode')}
+            </button>
+            <button
+                onClick={() => handleModeChange('recruiter')}
+                className={`px-4 py-1 text-sm font-semibold rounded-md transition-colors ${
+                    mode === 'recruiter' ? 'bg-white text-indigo-600 shadow' : 'text-gray-600 hover:bg-gray-200'
+                }`}
+            >
+                 {t('header.recruiterMode')}
+            </button>
+          </div>
+
           <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded-lg">
-                  <ModeButton isActive={mode === 'candidate'} onClick={() => onModeChange('candidate')}>
-                      <UserIcon className="h-5 w-5"/>
-                      <span>{t('header.candidateSpace')}</span>
-                  </ModeButton>
-                  <ModeButton isActive={mode === 'recruiter'} onClick={() => onModeChange('recruiter')}>
-                      <UserGroupIcon className="h-5 w-5"/>
-                      <span>{t('header.recruiterSpace')}</span>
-                  </ModeButton>
-              </div>
               <div className="flex items-center space-x-2">
                   <LanguageSwitcher />
                   <span className="text-sm text-gray-600 hidden sm:block">{userEmail}</span>

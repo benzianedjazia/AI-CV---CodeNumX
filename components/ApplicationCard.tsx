@@ -156,18 +156,27 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = (props) => {
 
   const handleShare = () => {
     const subject = encodeURIComponent(`${job.title} - ${job.company}`);
-    // Truncate description to avoid URL length limits (approx 2000 chars total safe limit for mailto)
-    const truncatedDescription = job.description.substring(0, 500) + (job.description.length > 500 ? '...' : '');
+    // Truncate description slightly less aggressively since we are using Gmail web interface
+    const truncatedDescription = job.description.substring(0, 1000) + (job.description.length > 1000 ? '...' : '');
+    
+    let contactInfo = '';
+    if (job.hiringEmail) contactInfo += `Email: ${job.hiringEmail}\n`;
+    if (job.phone) contactInfo += `Phone: ${job.phone}\n`;
+    if (job.address) contactInfo += `Address: ${job.address}\n`;
+
     const body = encodeURIComponent(
 `Job Title: ${job.title}
 Company: ${job.company}
 Location: ${job.location}
 URL: ${job.url}
-
+${contactInfo}
 Description:
 ${truncatedDescription}`
     );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    
+    // Open Gmail compose window
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
   };
 
   const handleDownloadPdf = () => {

@@ -30,9 +30,14 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({ company, cvDataExists,
         const contacts = company.employees ? company.employees.slice(0, 3).map(e => `- ${e.name} (${e.title})`).join('\n') : '';
         const descriptionSafe = company.description ? company.description.substring(0, 500) + (company.description.length > 500 ? '...' : '') : '';
         
+        let contactInfo = '';
+        if (company.phone) contactInfo += `Phone: ${company.phone}\n`;
+        if (company.address) contactInfo += `Address: ${company.address}\n`;
+
         const shareText = `Company: ${company.name}
 Domain: ${company.domain}
 Website: ${company.website || 'N/A'}
+${contactInfo}
 Description: ${descriptionSafe}
 
 Key Contacts:
@@ -40,7 +45,10 @@ ${contacts}`;
 
         const subject = encodeURIComponent(shareTitle);
         const body = encodeURIComponent(shareText);
-        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        
+        // Open Gmail compose window
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+        window.open(gmailUrl, '_blank');
     };
 
     const handleDownloadPdf = () => {

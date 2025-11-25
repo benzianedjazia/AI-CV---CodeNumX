@@ -156,6 +156,8 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = (props) => {
 
   const handleShare = () => {
     const subject = encodeURIComponent(`${job.title} - ${job.company}`);
+    // Truncate description to avoid URL length limits (approx 2000 chars total safe limit for mailto)
+    const truncatedDescription = job.description.substring(0, 500) + (job.description.length > 500 ? '...' : '');
     const body = encodeURIComponent(
 `Job Title: ${job.title}
 Company: ${job.company}
@@ -163,7 +165,7 @@ Location: ${job.location}
 URL: ${job.url}
 
 Description:
-${job.description}`
+${truncatedDescription}`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };

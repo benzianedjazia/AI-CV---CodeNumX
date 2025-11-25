@@ -23,36 +23,23 @@ interface CompanyCardProps {
 export const CompanyCard: React.FC<CompanyCardProps> = ({ company, cvDataExists, onGenerateMessage }) => {
     const { t } = useTranslations();
 
-    const handleShare = async () => {
+    const handleShare = () => {
         const shareTitle = `${t('results.companyCard.shareCompany')}: ${company.name}`;
         
         // Simplified content for sharing to avoid length limits
-        const contacts = company.employees.slice(0, 3).map(e => `- ${e.name} (${e.title})`).join('\n');
+        const contacts = company.employees ? company.employees.slice(0, 3).map(e => `- ${e.name} (${e.title})`).join('\n') : '';
+        const descriptionSafe = company.description ? company.description.substring(0, 500) + (company.description.length > 500 ? '...' : '') : '';
+        
         const shareText = `Company: ${company.name}
 Domain: ${company.domain}
 Website: ${company.website || 'N/A'}
-Description: ${company.description.substring(0, 200)}...
+Description: ${descriptionSafe}
 
 Key Contacts:
 ${contacts}`;
 
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: shareTitle,
-                    text: shareText,
-                });
-                return;
-            } catch (error) {
-                console.error('Error sharing:', error);
-                // Fallback to mailto if user cancels or share fails
-            }
-        }
-        
-        // Fallback to mailto with safe length
         const subject = encodeURIComponent(shareTitle);
-        // Truncate to ~1500 chars to be safe for mailto links
-        const body = encodeURIComponent(shareText.substring(0, 1500));
+        const body = encodeURIComponent(shareText);
         window.location.href = `mailto:?subject=${subject}&body=${body}`;
     };
 
@@ -94,7 +81,8 @@ ${contacts}`;
         
         doc.setFontSize(12);
         doc.setTextColor(TEXT_COLOR);
-        const splitDesc = doc.splitTextToSize(company.description, 180);
+        const description = company.description || '';
+        const splitDesc = doc.splitTextToSize(description, 180);
         doc.text(splitDesc, margin, y);
         
         y += (splitDesc.length * 6) + 20;
@@ -104,23 +92,25 @@ ${contacts}`;
         y += 15;
         
         doc.setFontSize(12);
-        company.employees.forEach(emp => {
-            if (y > 280) { // New page if needed
-                doc.addPage();
-                y = 20;
-            }
-            const text = `${emp.name} - ${emp.title}`;
-            doc.text(text, margin, y);
-            
-            if (emp.linkedinUrl) {
-                doc.setTextColor(PRIMARY_COLOR);
-                doc.setFontSize(10);
-                doc.textWithLink('LinkedIn', 150, y, { url: emp.linkedinUrl });
-                doc.setFontSize(12);
-                doc.setTextColor(TEXT_COLOR);
-            }
-            y += 10;
-        });
+        if (company.employees) {
+            company.employees.forEach(emp => {
+                if (y > 280) { // New page if needed
+                    doc.addPage();
+                    y = 20;
+                }
+                const text = `${emp.name} - ${emp.title}`;
+                doc.text(text, margin, y);
+                
+                if (emp.linkedinUrl) {
+                    doc.setTextColor(PRIMARY_COLOR);
+                    doc.setFontSize(10);
+                    doc.textWithLink('LinkedIn', 150, y, { url: emp.linkedinUrl });
+                    doc.setFontSize(12);
+                    doc.setTextColor(TEXT_COLOR);
+                }
+                y += 10;
+            });
+        }
     
         doc.save(`company_${company.name.replace(/[\s/]/g, '_')}_prospect.pdf`);
     };

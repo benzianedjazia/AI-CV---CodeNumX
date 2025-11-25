@@ -587,8 +587,8 @@ async function generateApplicationMessage(cvData: CvData, job: Job, type: 'direc
     const basePrompt = `Tu es un expert en communication professionnelle. Rédige un message court et percutant dans la langue : ${language}.
 
 **CV du candidat :**
-${JSON.stringify(cvData.summary, null, 2)}
-${JSON.stringify(cvData.skills, null, 2)}
+${JSON.stringify(cvData.summary || '', null, 2)}
+${JSON.stringify(cvData.skills || [], null, 2)}
 
 **Entreprise ciblée :** ${job.company}
 **Poste ciblé :** ${job.title}
@@ -745,7 +745,7 @@ async function generateSpontaneousApplicationMessage(cvData: CvData, company: Co
     const prompt = `Tu es un expert en communication professionnelle et en réseautage. Rédige un email de prise de contact pour une candidature spontanée. Le message doit être rédigé dans la langue : ${language}.
 
 **Informations sur le candidat (extrait du CV) :**
-- Nom: ${cvData.personalInfo.name}
+- Nom: ${cvData.personalInfo?.name || 'Candidat'}
 - Résumé: ${cvData.summary || 'Professionnel expérimenté.'}
 - Compétences clés: ${(cvData.skills || []).slice(0, 5).join(', ')}
 

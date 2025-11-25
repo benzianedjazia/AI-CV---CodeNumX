@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI CV - CodeNumX</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.mjs';
+    window.pdfjsLib = pdfjsLib;
+  </script>
   <style>
     /* For custom scrollbar aesthetics */
     ::-webkit-scrollbar {
@@ -35,7 +38,8 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "react": "https://aistudiocdn.com/react@^19.1.1"
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "jspdf": "https://esm.sh/jspdf@2.5.2?bundle"
   }
 }
 </script>

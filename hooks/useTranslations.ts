@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 const languages = ['fr', 'en', 'ar'] as const;
@@ -136,6 +137,7 @@ const translations: Translations = {
         title: "Aperçu et modèles",
         downloadAria: "Télécharger le CV en PNG",
         downloadButton: "Télécharger (PNG)",
+        downloadPdfButton: "Télécharger (PDF)",
         canvasAria: "Aperçu du CV",
     },
     loading: {
@@ -175,6 +177,8 @@ const translations: Translations = {
             website: "Site web",
             keyContacts: "Contacts clés",
             generateMessageTitle: "Générer un message de prise de contact",
+            shareCompany: "Partager l'entreprise",
+            downloadPdf: "Télécharger PDF",
         }
     },
     recruiter: {
@@ -228,7 +232,7 @@ const translations: Translations = {
     spontaneousApp: {
         title: "Message de Candidature Spontanée",
         toContact: "Pour contacter",
-        atCompany: "chez",
+        atCompany: "في",
         generating: "Génération du message...",
         copyButton: "Copier le message",
         copiedButton: "Copié !",
@@ -260,6 +264,8 @@ const translations: Translations = {
         analyzingFit: "Analyse...",
         matchScore: "Score",
         sentConfirmation: "Candidature marquée comme envoyée.",
+        shareOffer: "Partager l'offre",
+        downloadPdf: "Télécharger PDF",
     },
     coverLetter: {
         title: "Lettre de Motivation",
@@ -434,6 +440,7 @@ const translations: Translations = {
         title: "Preview & Templates",
         downloadAria: "Download CV as PNG",
         downloadButton: "Download (PNG)",
+        downloadPdfButton: "Download (PDF)",
         canvasAria: "CV Preview",
     },
     loading: {
@@ -473,6 +480,8 @@ const translations: Translations = {
             website: "Website",
             keyContacts: "Key Contacts",
             generateMessageTitle: "Generate contact message",
+            shareCompany: "Share Company",
+            downloadPdf: "Download PDF",
         }
     },
     recruiter: {
@@ -558,6 +567,8 @@ const translations: Translations = {
         analyzingFit: "Analyzing...",
         matchScore: "Score",
         sentConfirmation: "Application marked as sent.",
+        shareOffer: "Share Offer",
+        downloadPdf: "Download PDF",
     },
     coverLetter: {
         title: "Cover Letter",
@@ -732,6 +743,7 @@ const translations: Translations = {
         title: "معاينة وقوالب",
         downloadAria: "تنزيل السيرة الذاتية بصيغة PNG",
         downloadButton: "تنزيل (PNG)",
+        downloadPdfButton: "تنزيل (PDF)",
         canvasAria: "معاينة السيرة الذاتية",
     },
     loading: {
@@ -771,6 +783,8 @@ const translations: Translations = {
             website: "الموقع الإلكتروني",
             keyContacts: "جهات الاتصال الرئيسية",
             generateMessageTitle: "إنشاء رسالة تواصل",
+            shareCompany: "مشاركة الشركة",
+            downloadPdf: "تحميل PDF",
         }
     },
     recruiter: {
@@ -856,6 +870,8 @@ const translations: Translations = {
         analyzingFit: "جارٍ التحليل...",
         matchScore: "الدرجة",
         sentConfirmation: "تم تحديد الطلب كمرسل.",
+        shareOffer: "مشاركة العرض",
+        downloadPdf: "تحميل PDF",
     },
     coverLetter: {
         title: "خطاب التقديم",
@@ -913,7 +929,6 @@ interface LanguageContextType {
 }
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-// FIX: Explicitly type LanguageProvider as a React.FC to help TypeScript inference.
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [language, setLanguage] = useState<Language>('fr');
 
@@ -942,7 +957,6 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const value = useMemo(() => ({ language, setLanguage, t }), [language, t]);
 
-    // The .ts file extension does not support JSX syntax, so we use React.createElement.
     return React.createElement(LanguageContext.Provider, { value }, children);
 };
 

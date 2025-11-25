@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import type { CvData, Job, Candidate, CareerTrajectoryAnalysis, JobFitAnalysis, Company, CompanyEmployee, CvInput } from '../types';
 
@@ -80,7 +81,12 @@ async function extractCvInfo(cvText: string): Promise<CvData> {
 
   const jsonText = (response.text || '').trim();
   try {
-    return JSON.parse(jsonText) as CvData;
+    const data = JSON.parse(jsonText) as CvData;
+    // Safety check for arrays
+    if (!Array.isArray(data.skills)) data.skills = [];
+    if (!Array.isArray(data.experience)) data.experience = [];
+    if (!Array.isArray(data.education)) data.education = [];
+    return data;
   } catch (e) {
     console.error("Failed to parse CV JSON:", jsonText);
     throw new Error("The AI returned an invalid format for CV data.");
@@ -88,25 +94,49 @@ async function extractCvInfo(cvText: string): Promise<CvData> {
 }
 
 async function createCvFromLinkedIn(linkedinUrl: string): Promise<CvData> {
-    const prompt = `En vous basant sur l'URL de profil LinkedIn suivante, générez un CV détaillé et plausible au format JSON. Le CV doit être bien structuré avec des informations personnelles, un résumé, des compétences, plusieurs expériences professionnelles avec des responsabilités et une formation. Les données doivent être réalistes et d'aspect professionnel. Assurez-vous d'inventer des détails crédibles si le profil est générique.\n\nURL: ${linkedinUrl}`;
+    const prompt = `Utilise la recherche Google pour trouver des informations publiques sur le profil LinkedIn suivant. En te basant sur ces informations, génère un CV détaillé et plausible au format JSON. Le CV doit être bien structuré avec des informations personnelles, un résumé, des compétences, plusieurs expériences professionnelles avec des responsabilités et une formation. Le champ "skills" DOIT être un tableau JSON de chaînes de caractères (ex: ["JavaScript", "React", "Node.js"]). Les données doivent être réalistes et d'aspect professionnel. Assure-toi que la sortie est un JSON valide et bien formaté, sans texte ou démarque de code (comme \`\`\`json) autour. Si tu ne trouves aucune information, retourne un objet JSON conforme au schéma avec des valeurs vides.\n\nURL: ${linkedinUrl}`;
     
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-          responseMimeType: "application/json",
-          responseSchema: cvSchema,
+          tools: [{googleSearch: {}}],
         }
     });
 
-    const jsonText = (response.text || '').trim();
+    let jsonText = (response.text || '').trim();
     try {
-        return JSON.parse(jsonText) as CvData;
+        // Handle potential markdown code blocks and preambles
+        const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match && match[1]) {
+            jsonText = match[1];
+        } else {
+            const objectStartIndex = jsonText.indexOf('{');
+            if (objectStartIndex !== -1) {
+                const objectEndIndex = jsonText.lastIndexOf('}');
+                if (objectEndIndex !== -1 && objectEndIndex > objectStartIndex) {
+                    jsonText = jsonText.substring(objectStartIndex, objectEndIndex + 1);
+                }
+            }
+        }
+        const cvData = JSON.parse(jsonText) as CvData & { skills?: string | string[] };
+
+        // Post-processing to ensure skills is always an array of strings.
+        if (cvData.skills && typeof cvData.skills === 'string') {
+            // The model returned skills as a comma-separated string. Convert it to an array.
+            cvData.skills = cvData.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+        } else if (!Array.isArray(cvData.skills)) {
+            // Ensure skills is at least an empty array if missing or of an unexpected type.
+            cvData.skills = [];
+        }
+
+        return cvData as CvData;
     } catch (e) {
-        console.error("Failed to parse LinkedIn CV JSON:", jsonText);
+        console.error("Failed to parse LinkedIn CV JSON:", response.text);
         throw new Error("The AI returned an invalid format for LinkedIn CV data.");
     }
 }
+
 
 async function parseCvInput(cvInput: CvInput): Promise<CvData> {
     if (cvInput.type === 'text' && cvInput.content) {
@@ -114,7 +144,12 @@ async function parseCvInput(cvInput: CvInput): Promise<CvData> {
     } else if (cvInput.type === 'linkedin' && cvInput.url) {
         return await createCvFromLinkedIn(cvInput.url);
     } else if (cvInput.type === 'manual' && cvInput.data) {
-        return cvInput.data;
+        // Ensure manual data has correct array types
+        const data = cvInput.data;
+        if (!Array.isArray(data.skills)) data.skills = [];
+        if (!Array.isArray(data.experience)) data.experience = [];
+        if (!Array.isArray(data.education)) data.education = [];
+        return data;
     } else {
         throw new Error("Invalid CV input provided.");
     }
@@ -156,6 +191,7 @@ async function findJobs(skills: string[], country: string, cities: string[], con
     *   **Auto-vérification OBLIGATOIRE :** Avant de fournir l'URL, tu dois te demander : "Est-ce que ce lien mène à une page unique pour UNE SEULE offre d'emploi ?". Si la réponse est non (si ça mène à une liste, une page d'accueil, une page "carrières" générale), le lien est **INCORRECT** et tu dois trouver le bon ou exclure l'offre.
     *   **ABSOLUMENT INTERDIT :** Les pages d'accueil, les pages "Carrières" listant plusieurs postes, les résultats de recherche. L'URL doit être spécifique et profonde.
     *   Le lien doit provenir directement des résultats de recherche Google. Ne devine ou ne construis JAMAIS une URL.
+1. bis. **DOUBLE VÉRIFICATION DES LIENS :** La qualité de ta réponse dépend entièrement de la validité des URL. Une URL qui ne mène pas à une offre d'emploi spécifique est un échec critique. **Vérifie chaque lien.** Mieux vaut fournir moins d'offres avec des liens corrects que de nombreuses offres avec des liens cassés.
 
 2.  **Format de sortie :** Retourne les résultats sous forme d'un tableau JSON. Chaque objet du tableau doit représenter une offre d'emploi.
 
@@ -182,7 +218,7 @@ async function findJobs(skills: string[], country: string, cities: string[], con
     *   L'invention d'informations est strictement interdite. La précision est capitale.
 
 5.  **Cas sans résultat :** Si, après une recherche approfondie, aucune offre pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`. N'invente pas d'offres.
-6.  **Qualité avant tout :** Assure-toi que la sortie est un JSON valide et bien formaté, sans texte ou démarque de code (comme \`\`\`json) autour.`;
+6.  **Qualité avant tout :** Ta réponse DOIT être un tableau JSON valide et rien d'autre. Elle doit commencer par \`[\` et se terminer par \`]\`. N'inclus absolument aucun texte, explication ou formatage (comme les démarques de code \`\`\`json\`) avant ou après le tableau JSON.`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -192,32 +228,137 @@ async function findJobs(skills: string[], country: string, cities: string[], con
     }
   });
 
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   let jsonText = (response.text || '').trim();
   try {
-    // Handle potential markdown code blocks and preambles
     const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (match && match[1]) {
-        jsonText = match[1];
+        jsonText = match[1].trim();
+    }
+
+    const startIndex = jsonText.indexOf('[');
+    const endIndex = jsonText.lastIndexOf(']');
+
+    if (startIndex !== -1 && endIndex > startIndex) {
+        jsonText = jsonText.substring(startIndex, endIndex + 1);
     } else {
-        const arrayStartIndex = jsonText.indexOf('[');
-        if (arrayStartIndex !== -1) {
-            const arrayEndIndex = jsonText.lastIndexOf(']');
-            if (arrayEndIndex !== -1 && arrayEndIndex > arrayStartIndex) {
-                jsonText = jsonText.substring(arrayStartIndex, arrayEndIndex + 1);
-            }
-        }
+        console.warn("Could not find a valid JSON array in the response for jobs. Returning empty list.", response.text);
+        return { jobs: [], groundingChunks };
     }
     
-    const jobs = JSON.parse(jsonText) as Job[];
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sanitizedJsonText = jsonText.replace(/,\s*([}\]])/g, '$1');
+
+    const jobs = JSON.parse(sanitizedJsonText) as Job[];
     return { jobs, groundingChunks };
   } catch (e) {
-    console.error("Failed to parse Jobs JSON:", response.text);
-    throw new Error("The AI returned an invalid format for job data.");
+    console.error("Failed to parse Jobs JSON, returning empty list.", { error: e, responseText: response.text });
+    return { jobs: [], groundingChunks };
   }
 }
 
-// FIX: Implement the missing `findCandidates` function.
+async function findJobsFromCvText(cvText: string, country: string, cities: string[], contractTypes: string[], datePosted: string): Promise<{ jobs: Job[], groundingChunks: any[] }> {
+  
+  let specificInstructions = `Ta mission est de fournir une liste de résultats aussi riche et pertinente que possible, en visant **un minimum de 20 offres d'emploi, et jusqu'à 30 si possible**. Sois exhaustif dans ta recherche.`;
+
+  if (contractTypes.some(ct => ['Freelance', 'Sous-traitance'].includes(ct))) {
+    specificInstructions += `\n**Attention particulière pour les freelances/sous-traitants :** Cherche activement des "missions", "projets", ou des postes de "consultant". Explore les plateformes spécialisées pour freelances (comme Malt, Freelance-info, etc.) en plus des sites d'emploi traditionnels.`;
+  }
+
+  const dateFilterInstruction = datePosted === 'month' 
+    ? "La recherche doit se concentrer **prioritairement et quasi exclusivement** sur les offres publiées il y a **moins d'un mois**. Les offres les plus récentes sont les plus importantes."
+    : "La date de publication est **indifférente**. Tu dois retourner toutes les offres pertinentes, **même si elles sont anciennes** (par exemple, datant de plus d'un an ou deux). Ne filtre pas par date.";
+
+  let locationQuery = `"${country}"`;
+  if (cities.length > 0) {
+      locationQuery = `"${cities.join(', ')} au pays ${country}"`;
+  }
+
+  const prompt = `En tant qu'expert en recrutement international, utilise la recherche Google pour trouver des offres d'emploi. Ta recherche doit être basée sur l'analyse du CV fourni ci-dessous pour en extraire les compétences clés et l'expérience. ${specificInstructions}
+
+**CV DU CANDIDAT :**
+${cvText}
+
+**Critères de recherche :**
+- **Lieu :** ${locationQuery}
+- **Type de contrat :** "${contractTypes.length > 0 ? contractTypes.join(', ') : 'Tous types'}"
+
+**Instruction sur la date de publication :** ${dateFilterInstruction}
+
+**Instructions pour la réponse :**
+1.  **VALIDITÉ DES URLS - RÈGLE FONDAMENTALE ET NON NÉGOCIABLE :**
+    *   Le champ \`url\` est le plus important. Il DOIT pointer **directement et uniquement** vers la page de l'offre d'emploi détaillée, là où le candidat peut lire les détails complets et postuler.
+    *   **DISTINCTION CRITIQUE :** Le champ \`url\` NE DOIT PAS être le site web général de l'entreprise (ça, c'est pour le champ \`companyWebsite\`). Le champ \`url\` est pour l'offre, et l'offre seulement.
+        *   **MAUVAIS EXEMPLE :** \`"url": "https://www.google.com/careers"\`
+        *   **BON EXEMPLE :** \`"url": "https://www.google.com/careers/jobs/12345/software-engineer"\`
+    *   **Auto-vérification OBLIGATOIRE :** Avant de fournir l'URL, tu dois te demander : "Est-ce que ce lien mène à une page unique pour UNE SEULE offre d'emploi ?". Si la réponse est non (si ça mène à une liste, une page d'accueil, une page "carrières" générale), le lien est **INCORRECT** et tu dois trouver le bon ou exclure l'offre.
+    *   **ABSOLUMENT INTERDIT :** Les pages d'accueil, les pages "Carrières" listant plusieurs postes, les résultats de recherche. L'URL doit être spécifique et profonde.
+    *   Le lien doit provenir directement des résultats de recherche Google. Ne devine ou ne construis JAMAIS une URL.
+1. bis. **DOUBLE VÉRIFICATION DES LIENS :** La qualité de ta réponse dépend entièrement de la validité des URL. Une URL qui ne mène pas à une offre d'emploi spécifique est un échec critique. **Vérifie chaque lien.** Mieux vaut fournir moins d'offres avec des liens corrects que de nombreuses offres avec des liens cassés.
+
+2.  **Format de sortie :** Retourne les résultats sous forme d'un tableau JSON. Chaque objet du tableau doit représenter une offre d'emploi.
+
+3.  **Champs à extraire pour chaque offre :**
+    *   \`title\`: Titre exact du poste.
+    *   \`company\`: Nom de l'entreprise qui recrute.
+    *   \`location\`: Ville.
+    *   \`description\`: Description détaillée et complète du poste (missions, profil, compétences, avantages). Vise au moins 100 mots.
+    *   \`source\`: Nom du site web source (ex: "LinkedIn", "Malt").
+    *   \`url\`: L'URL directe et VÉRIFIÉE de l'offre, conformément à la règle n°1.
+    *   \`datePosted\`: La date de publication de l'offre (ex: "il y a 2 jours", "le 15 juin 2024"). Cherche cette information sur la page de l'offre.
+    *   \`phone\`: **Recherche active requise.** Le numéro de téléphone standard de l'entreprise.
+    *   \`address\`: **Recherche active requise.** L'adresse physique complète du bureau ou de l'agence.
+    *   \`companyWebsite\`: (Optionnel) URL du site de l'entreprise.
+    *   \`hiringEmail\`: **Recherche active requise.** L'email de contact pour les candidatures.
+
+4.  **MISSION CRITIQUE : Recherche approfondie des coordonnées (Email, Adresse, Téléphone)**
+    *   Ta mission la plus importante, après la validité des URL, est de trouver **l'email de contact RH/recrutement**, le numéro de téléphone et l'adresse physique de chaque entreprise. C'est **non négociable**.
+    *   **Stratégie de recherche OBLIGATOIRE en plusieurs étapes :**
+        1.  **Analyse de l'annonce :** Cherche d'abord dans le texte de l'annonce.
+        2.  **Recherche Google Ciblée :** Si l'annonce est incomplète, tu DOIS effectuer une nouvelle recherche Google avec des termes comme : \`"email recrutement [Nom de l'entreprise]"\`, \`"carrières [Nom de l'entreprise]"\`, ou \`"[Nom de l'entreprise] [Ville] téléphone adresse"\`.
+        3.  **Exploration des sites web :** Consulte la page "Contact", "Carrières", "À propos" ou le pied de page du site officiel de l'entreprise pour trouver ces informations.
+    *   **Objectif :** Remplir les champs \`hiringEmail\`, \`phone\` et \`address\` pour **chaque offre**. Ne les omets que si, et seulement si, après avoir suivi TOUTES ces étapes, l'information est absolument introuvable.
+    *   L'invention d'informations est strictement interdite. La précision est capitale.
+
+5.  **Cas sans résultat :** Si, après une recherche approfondie, aucune offre pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`. N'invente pas d'offres.
+6.  **Qualité avant tout :** Ta réponse DOIT être un tableau JSON valide et rien d'autre. Elle doit commencer par \`[\` et se terminer par \`]\`. N'inclus absolument aucun texte, explication ou formatage (comme les démarques de code \`\`\`json\`) avant ou après le tableau JSON.`;
+  
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      tools: [{googleSearch: {}}],
+    }
+  });
+
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  let jsonText = (response.text || '').trim();
+  try {
+    const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match && match[1]) {
+        jsonText = match[1].trim();
+    }
+
+    const startIndex = jsonText.indexOf('[');
+    const endIndex = jsonText.lastIndexOf(']');
+
+    if (startIndex !== -1 && endIndex > startIndex) {
+        jsonText = jsonText.substring(startIndex, endIndex + 1);
+    } else {
+        console.warn("Could not find a valid JSON array in the response for jobs. Returning empty list.", response.text);
+        return { jobs: [], groundingChunks };
+    }
+    
+    const sanitizedJsonText = jsonText.replace(/,\s*([}\]])/g, '$1');
+
+    const jobs = JSON.parse(sanitizedJsonText) as Job[];
+    return { jobs, groundingChunks };
+  } catch (e) {
+    console.error("Failed to parse Jobs JSON, returning empty list.", { error: e, responseText: response.text });
+    return { jobs: [], groundingChunks };
+  }
+}
+
+
 async function findCandidates(jobDescription: string, country: string, cities: string[]): Promise<{ candidates: Omit<Candidate, 'id'>[], groundingChunks: any[] }> {
   let locationQuery = `"${country}"`;
   if (cities.length > 0) {
@@ -242,9 +383,12 @@ Les candidats doivent être localisés ${locationQuery}.
     *   \`phone\`: (Optionnel) Un numéro de téléphone public si disponible.
     *   \`linkedinUrl\`: **CRUCIAL :** L'URL publique directe et valide de leur profil LinkedIn. C'est obligatoire.
     *   \`source\`: Le nom du site web où l'information a été trouvée (ex: "LinkedIn").
-4.  **Intégrité des données :** Toutes les informations doivent être accessibles au public. N'invente aucune donnée. L'URL \`linkedinUrl\` doit être un lien réel et fonctionnel vers le profil d'une personne.
+4.  **Intégrité et Unicité des Données :**
+    *   Toutes les informations doivent être accessibles au public. N'invente aucune donnée.
+    *   L'URL \`linkedinUrl\` doit être un lien réel et fonctionnel vers le profil d'une personne.
+    *   **RÈGLE D'UNICITÉ STRICTE :** Chaque candidat dans la liste DOIT avoir une \`linkedinUrl\` **unique**. Ne jamais réutiliser la même URL pour deux candidats différents. Si tu trouves deux noms mais que tu ne peux valider qu'une seule URL LinkedIn, ne retourne que le candidat avec l'URL vérifiée.
 5.  **Aucun résultat :** Si aucun candidat approprié n'est trouvé après une recherche approfondie, retourne un tableau JSON vide : \`[]\`.
-6.  **Qualité de la sortie :** Assure-toi que la sortie est un tableau JSON valide et bien formaté, sans texte environnant ni démarque de code (comme \`\`\`json).`;
+6.  **Qualité de la sortie :** Ta réponse DOIT être un tableau JSON valide et rien d'autre. Elle doit commencer par \`[\` et se terminer par \`]\`. N'inclus absolument aucun texte, explication ou formatage (comme les démarques de code \`\`\`json\`) avant ou après le tableau JSON.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -254,28 +398,31 @@ Les candidats doivent être localisés ${locationQuery}.
     }
   });
 
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   let jsonText = (response.text || '').trim();
   try {
-    // Handle potential markdown code blocks and preambles
     const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (match && match[1]) {
-        jsonText = match[1];
+        jsonText = match[1].trim();
+    }
+
+    const startIndex = jsonText.indexOf('[');
+    const endIndex = jsonText.lastIndexOf(']');
+
+    if (startIndex !== -1 && endIndex > startIndex) {
+        jsonText = jsonText.substring(startIndex, endIndex + 1);
     } else {
-        const arrayStartIndex = jsonText.indexOf('[');
-        if (arrayStartIndex !== -1) {
-            const arrayEndIndex = jsonText.lastIndexOf(']');
-            if (arrayEndIndex !== -1 && arrayEndIndex > arrayStartIndex) {
-                jsonText = jsonText.substring(arrayStartIndex, arrayEndIndex + 1);
-            }
-        }
+        console.warn("Could not find a valid JSON array in the response for candidates. Returning empty list.", response.text);
+        return { candidates: [], groundingChunks };
     }
     
-    const candidates = JSON.parse(jsonText) as Omit<Candidate, 'id'>[];
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sanitizedJsonText = jsonText.replace(/,\s*([}\]])/g, '$1');
+    
+    const candidates = JSON.parse(sanitizedJsonText) as Omit<Candidate, 'id'>[];
     return { candidates, groundingChunks };
   } catch (e) {
-    console.error("Failed to parse Candidates JSON:", response.text);
-    throw new Error("The AI returned an invalid format for candidate data.");
+    console.error("Failed to parse Candidates JSON, returning empty list.", { error: e, responseText: response.text });
+    return { candidates: [], groundingChunks };
   }
 }
 
@@ -552,8 +699,12 @@ async function findCompanies(domain: string, country: string, cities: string[]):
     *   \`title\`: Leur titre de poste actuel dans l'entreprise.
     *   \`linkedinUrl\`: L'URL directe et publique de leur profil LinkedIn. C'est crucial. Le format doit être \`https://www.linkedin.com/in/nom-prenom-identifiant\`. Ne retourne JAMAIS de lien de recherche. La validité de ce lien est primordiale.
 5.  **Format de sortie :** Retourne les données sous la forme d'un unique tableau JSON valide d'objets d'entreprise. N'inclus aucun texte, explication ou démarque de code autour du JSON.
-6.  **Intégrité des données :** Toutes les informations doivent être accessibles au public. N'invente aucune donnée. Si une information (comme un numéro de téléphone) ne peut être trouvée après une recherche approfondie, omets la clé pour ce champ. Cependant, \`linkedinUrl\` pour les employés est obligatoire. Si tu ne trouves pas d'employés pertinents sur LinkedIn, l'entreprise n'est peut-être pas un bon choix pour cette liste.
-7.  **Aucun résultat :** Si aucune entreprise pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`.`;
+6.  **Intégrité et Unicité des Données :**
+    *   Toutes les informations doivent être accessibles au public. N'invente aucune donnée.
+    *   Le champ \`linkedinUrl\` pour les employés est obligatoire. Si tu ne trouves pas d'employés pertinents avec des profils LinkedIn valides, l'entreprise n'est peut-être pas un bon choix pour cette liste.
+    *   **RÈGLE D'UNICITÉ STRICTE :** Chaque employé listé (même entre différentes entreprises) DOIT avoir une \`linkedinUrl\` **unique**. Ne réutilise jamais la même URL pour deux personnes différentes.
+7.  **Aucun résultat :** Si aucune entreprise pertinente n'est trouvée, retourne un tableau JSON vide \`[]\`.
+8.  **Qualité de la sortie :** Ta réponse DOIT être un tableau JSON valide et rien d'autre. Elle doit commencer par \`[\` et se terminer par \`]\`. N'inclus absolument aucun texte, explication ou formatage (comme les démarques de code \`\`\`json\`) avant ou après le tableau JSON.`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -567,22 +718,26 @@ async function findCompanies(domain: string, country: string, cities: string[]):
     try {
         const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
         if (match && match[1]) {
-            jsonText = match[1];
-        } else {
-            const arrayStartIndex = jsonText.indexOf('[');
-            if (arrayStartIndex !== -1) {
-                const arrayEndIndex = jsonText.lastIndexOf(']');
-                if (arrayEndIndex !== -1 && arrayEndIndex > arrayStartIndex) {
-                    jsonText = jsonText.substring(arrayStartIndex, arrayEndIndex + 1);
-                }
-            }
+            jsonText = match[1].trim();
         }
 
-        const companies = JSON.parse(jsonText) as Omit<Company, 'id'>[];
+        const startIndex = jsonText.indexOf('[');
+        const endIndex = jsonText.lastIndexOf(']');
+
+        if (startIndex !== -1 && endIndex > startIndex) {
+            jsonText = jsonText.substring(startIndex, endIndex + 1);
+        } else {
+            console.warn("Could not find a valid JSON array in the response for companies. Returning empty list.", response.text);
+            return [];
+        }
+        
+        const sanitizedJsonText = jsonText.replace(/,\s*([}\]])/g, '$1');
+
+        const companies = JSON.parse(sanitizedJsonText) as Omit<Company, 'id'>[];
         return companies;
     } catch (e) {
-        console.error("Failed to parse Companies JSON:", response.text);
-        throw new Error("L'IA a retourné un format invalide pour les données des entreprises.");
+        console.error("Failed to parse Companies JSON, returning empty list.", { error: e, responseText: response.text });
+        return [];
     }
 }
 
@@ -592,7 +747,7 @@ async function generateSpontaneousApplicationMessage(cvData: CvData, company: Co
 **Informations sur le candidat (extrait du CV) :**
 - Nom: ${cvData.personalInfo.name}
 - Résumé: ${cvData.summary || 'Professionnel expérimenté.'}
-- Compétences clés: ${cvData.skills.slice(0, 5).join(', ')}
+- Compétences clés: ${(cvData.skills || []).slice(0, 5).join(', ')}
 
 **Informations sur l'entreprise et le contact :**
 - Nom de l'entreprise: ${company.name}
@@ -660,6 +815,7 @@ export const geminiService = {
   createCvFromLinkedIn,
   parseCvInput,
   findJobs,
+  findJobsFromCvText,
   findCandidates,
   generateCoverLetter,
   analyzeCareerTrajectory,

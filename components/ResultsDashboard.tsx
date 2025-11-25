@@ -328,7 +328,7 @@ export const ResultsDashboard: React.FC<ResultsDashboardProps> = (props) => {
       )}
       {messageTarget && cvData && (
         <SpontaneousApplicationModal
-            cvData={messageTarget.company}
+            cvData={cvData}
             company={messageTarget.company}
             contact={messageTarget.employee}
             onClose={() => setMessageTarget(null)}

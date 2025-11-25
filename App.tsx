@@ -82,20 +82,36 @@ const App: React.FC = () => {
     setFitAnalyses({});
 
     try {
+      // For all cases, we first need the structured CV data for the UI and other features.
       const extractedCvData = await geminiService.parseCvInput(cvInput);
-      
       setCvData(extractedCvData);
       
       currentStep = 'findingJobs';
       setLoadingState('findingJobs');
       
-      const { jobs: foundJobs, groundingChunks: foundChunks } = await geminiService.findJobs(
-        extractedCvData.skills, 
-        searchOptions.country,
-        searchOptions.cities,
-        searchOptions.contractTypes,
-        searchOptions.datePosted
-      );
+      let jobSearchPromise;
+
+      // For PDF/pasted text, use the new, more robust method that analyzes the full CV text.
+      if (cvInput.type === 'text' && cvInput.content) {
+          jobSearchPromise = geminiService.findJobsFromCvText(
+              cvInput.content, 
+              searchOptions.country,
+              searchOptions.cities,
+              searchOptions.contractTypes,
+              searchOptions.datePosted
+          );
+      } else {
+          // Fallback to the original method for LinkedIn and Manual inputs, which are already structured.
+          jobSearchPromise = geminiService.findJobs(
+              extractedCvData.skills, 
+              searchOptions.country,
+              searchOptions.cities,
+              searchOptions.contractTypes,
+              searchOptions.datePosted
+          );
+      }
+
+      const { jobs: foundJobs, groundingChunks: foundChunks } = await jobSearchPromise;
       
       setGroundingChunks(foundChunks || []);
 

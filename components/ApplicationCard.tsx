@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { Application, JobFitAnalysis } from '../types';
 import { EyeIcon } from './icons/EyeIcon';
@@ -13,6 +14,9 @@ import { useTranslations } from '../hooks/useTranslations';
 import { CalendarIcon } from './icons/CalendarIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { ChatBubbleBottomCenterTextIcon } from './icons/ChatBubbleBottomCenterTextIcon';
+import { ShareIcon } from './icons/ShareIcon';
+import { DownloadIcon } from './icons/DownloadIcon';
+import { jsPDF } from "jspdf";
 
 interface ApplicationCardProps {
   application: Application;
@@ -150,6 +154,85 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = (props) => {
     return 'text-red-600 bg-red-100';
   }
 
+  const handleShare = () => {
+    const subject = encodeURIComponent(`${job.title} - ${job.company}`);
+    const body = encodeURIComponent(
+`Job Title: ${job.title}
+Company: ${job.company}
+Location: ${job.location}
+URL: ${job.url}
+
+Description:
+${job.description}`
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF();
+    const margin = 15;
+    let y = 20;
+    const PRIMARY_COLOR = '#4f46e5';
+    const TEXT_COLOR = '#1f2937';
+
+    doc.setFontSize(18);
+    doc.setTextColor(PRIMARY_COLOR);
+    doc.text(job.title, margin, y);
+    y += 10;
+
+    doc.setFontSize(14);
+    doc.setTextColor(TEXT_COLOR);
+    doc.text(`${job.company} - ${job.location}`, margin, y);
+    y += 10;
+
+    if (job.datePosted) {
+        doc.setFontSize(10);
+        doc.setTextColor('#6b7280');
+        doc.text(job.datePosted, margin, y);
+        y += 15;
+    } else {
+        y += 5;
+    }
+    
+    doc.setFontSize(12);
+    doc.setTextColor(TEXT_COLOR);
+    
+    const splitDesc = doc.splitTextToSize(job.description, 180);
+    doc.text(splitDesc, margin, y);
+    y += (splitDesc.length * 6) + 10;
+
+    if (job.url) {
+        doc.setTextColor(PRIMARY_COLOR);
+        doc.textWithLink('View Offer Online', margin, y, { url: job.url });
+        y += 10;
+    }
+    
+    // Contact Info
+    if (job.hiringEmail || job.phone || job.address) {
+        y += 5;
+        doc.setFontSize(14);
+        doc.setTextColor(TEXT_COLOR);
+        doc.text("Contact", margin, y);
+        y += 8;
+        doc.setFontSize(11);
+        
+        if (job.hiringEmail) {
+            doc.text(`Email: ${job.hiringEmail}`, margin, y);
+            y += 6;
+        }
+        if (job.phone) {
+            doc.text(`Phone: ${job.phone}`, margin, y);
+            y += 6;
+        }
+         if (job.address) {
+            doc.text(`Address: ${job.address}`, margin, y);
+            y += 6;
+        }
+    }
+    
+    doc.save(`offer_${job.company.replace(/[\s/]/g, '_')}_${job.title.replace(/[\s/]/g, '_')}.pdf`);
+  };
+
   return (
     <div className={`p-6 rounded-lg shadow-md border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-300 shadow-lg' : 'bg-white border-gray-200 hover:shadow-lg'}`}>
       <div className="flex items-start space-x-4">
@@ -259,6 +342,22 @@ export const ApplicationCard: React.FC<ApplicationCardProps> = (props) => {
                         {t('applicationCard.generateMessage')}
                     </button>
                 </div>
+                 <div className="grid grid-cols-2 gap-2">
+                     <button
+                        onClick={handleDownloadPdf}
+                        className="flex items-center justify-center w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors border border-gray-300"
+                    >
+                        <DownloadIcon className="h-5 w-5 me-2" />
+                        {t('applicationCard.downloadPdf')}
+                    </button>
+                     <button
+                        onClick={handleShare}
+                        className="flex items-center justify-center w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors border border-gray-300"
+                    >
+                        <ShareIcon className="h-5 w-5 me-2" />
+                        {t('applicationCard.shareOffer')}
+                    </button>
+                 </div>
                 
                  <div className="w-full pt-2 mt-2 border-t">
                     {fitAnalysis?.status === 'done' && fitAnalysis.data ? (

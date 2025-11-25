@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Company, CompanyEmployee } from '../types';
 import { useTranslations } from '../hooks/useTranslations';
@@ -9,6 +10,9 @@ import { LinkedInIcon } from './icons/LinkedInIcon';
 import { BriefcaseIcon } from './icons/BriefcaseIcon';
 import { UserIcon } from './icons/UserIcon';
 import { ChatBubbleBottomCenterTextIcon } from './icons/ChatBubbleBottomCenterTextIcon';
+import { ShareIcon } from './icons/ShareIcon';
+import { DownloadIcon } from './icons/DownloadIcon';
+import { jsPDF } from "jspdf";
 
 interface CompanyCardProps { 
     company: Company;
@@ -18,9 +22,129 @@ interface CompanyCardProps {
 
 export const CompanyCard: React.FC<CompanyCardProps> = ({ company, cvDataExists, onGenerateMessage }) => {
     const { t } = useTranslations();
+
+    const handleShare = async () => {
+        const shareTitle = `${t('results.companyCard.shareCompany')}: ${company.name}`;
+        
+        // Simplified content for sharing to avoid length limits
+        const contacts = company.employees.slice(0, 3).map(e => `- ${e.name} (${e.title})`).join('\n');
+        const shareText = `Company: ${company.name}
+Domain: ${company.domain}
+Website: ${company.website || 'N/A'}
+Description: ${company.description.substring(0, 200)}...
+
+Key Contacts:
+${contacts}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                });
+                return;
+            } catch (error) {
+                console.error('Error sharing:', error);
+                // Fallback to mailto if user cancels or share fails
+            }
+        }
+        
+        // Fallback to mailto with safe length
+        const subject = encodeURIComponent(shareTitle);
+        // Truncate to ~1500 chars to be safe for mailto links
+        const body = encodeURIComponent(shareText.substring(0, 1500));
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    };
+
+    const handleDownloadPdf = () => {
+        const doc = new jsPDF();
+        const margin = 15;
+        let y = 20;
+        const PRIMARY_COLOR = '#4f46e5';
+        const TEXT_COLOR = '#1f2937';
+        
+        doc.setFontSize(18);
+        doc.setTextColor(PRIMARY_COLOR);
+        doc.text(company.name, margin, y);
+        y += 10;
+        
+        doc.setFontSize(14);
+        doc.setTextColor(TEXT_COLOR);
+        doc.text(company.domain, margin, y);
+        y += 10;
+        
+        if (company.website) {
+            doc.setTextColor(PRIMARY_COLOR);
+            doc.setFontSize(10);
+            doc.textWithLink(company.website, margin, y, { url: company.website });
+            y += 10;
+        }
+
+        if (company.address || company.phone) {
+             doc.setFontSize(10);
+             doc.setTextColor(TEXT_COLOR);
+             let info = '';
+             if (company.address) info += company.address;
+             if (company.phone) info += (info ? ' | ' : '') + company.phone;
+             doc.text(info, margin, y);
+             y += 15;
+        } else {
+             y += 5;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(TEXT_COLOR);
+        const splitDesc = doc.splitTextToSize(company.description, 180);
+        doc.text(splitDesc, margin, y);
+        
+        y += (splitDesc.length * 6) + 20;
+        
+        doc.setFontSize(14);
+        doc.text(t('results.companyCard.keyContacts'), margin, y);
+        y += 15;
+        
+        doc.setFontSize(12);
+        company.employees.forEach(emp => {
+            if (y > 280) { // New page if needed
+                doc.addPage();
+                y = 20;
+            }
+            const text = `${emp.name} - ${emp.title}`;
+            doc.text(text, margin, y);
+            
+            if (emp.linkedinUrl) {
+                doc.setTextColor(PRIMARY_COLOR);
+                doc.setFontSize(10);
+                doc.textWithLink('LinkedIn', 150, y, { url: emp.linkedinUrl });
+                doc.setFontSize(12);
+                doc.setTextColor(TEXT_COLOR);
+            }
+            y += 10;
+        });
+    
+        doc.save(`company_${company.name.replace(/[\s/]/g, '_')}_prospect.pdf`);
+    };
+
     return (
-        <div className="p-5 rounded-lg shadow-md border bg-white border-gray-200 transition-all hover:shadow-lg hover:border-indigo-200">
-            <div className="flex flex-col sm:flex-row items-start gap-5">
+        <div className="p-5 rounded-lg shadow-md border bg-white border-gray-200 transition-all hover:shadow-lg hover:border-indigo-200 relative">
+            <div className="absolute top-4 right-4 flex gap-2">
+                 <button
+                    onClick={handleDownloadPdf}
+                    className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                    title={t('results.companyCard.downloadPdf')}
+                >
+                    <DownloadIcon className="h-6 w-6" />
+                </button>
+                <button
+                    onClick={handleShare}
+                    className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                    title={t('results.companyCard.shareCompany')}
+                >
+                    <ShareIcon className="h-6 w-6" />
+                </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start gap-5 pr-20">
                 <div className="flex-shrink-0 h-16 w-16 bg-indigo-100 rounded-lg flex items-center justify-center">
                     <BuildingOfficeIcon className="h-10 w-10 text-indigo-500" />
                 </div>
@@ -57,7 +181,10 @@ export const CompanyCard: React.FC<CompanyCardProps> = ({ company, cvDataExists,
                                     <LinkedInIcon className="h-5 w-5" />
                                 </a>
                                 <button
-                                    onClick={() => onGenerateMessage(employee)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onGenerateMessage(employee);
+                                    }}
                                     disabled={!cvDataExists}
                                     className="flex items-center px-2 py-1 bg-slate-500 text-white rounded-md hover:bg-slate-600 transition-colors text-xs disabled:bg-slate-300 disabled:cursor-not-allowed"
                                     title={t('results.companyCard.generateMessageTitle')}
